@@ -1,0 +1,28 @@
+# Django core
+django>=4.2,<5.0
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+
+# Database
+psycopg2-binary>=2.9
+dj-database-url>=2.1
+
+# Blockchain / Web3
+web3>=6.15
+eth-account>=0.11
+
+# HTTP requests
+requests>=2.31
+
+# Firebase push notifications
+firebase-admin>=6.4
+
+# Environment variables
+python-dotenv>=1.0
+
+# Production server
+gunicorn>=21.2
+
+# Static files
+whitenoise>=6.6
