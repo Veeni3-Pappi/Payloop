@@ -1,4 +1,3 @@
-import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 
 /** @type {import('hardhat/config').HardhatUserConfig} */
@@ -13,16 +12,14 @@ const config = {
     },
   },
   networks: {
-    hardhat: {},
+    hardhat: {
+      type: "edr-simulated",
+    },
     amoy: {
+      type: "http",
       url: process.env.POLYGON_RPC_URL || "https://rpc-amoy.polygon.technology",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 80002,
-    },
-  },
-  etherscan: {
-    apiKey: {
-      polygonAmoy: process.env.POLYGONSCAN_API_KEY || "",
     },
   },
 };
