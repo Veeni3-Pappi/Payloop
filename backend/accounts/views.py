@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views for wallet-based authentication.
 
 VerifyWalletView accepts a signed message from MetaMask, verifies
@@ -47,8 +47,30 @@ def verify_wallet(request):
 
     # Get or create user for this wallet
     user, _created = User.objects.get_or_create(
-        wallet_address=wallet,
+        wallet_address=wallet.lower(),
     )
+
+    # Get or create default circle if CIRCLE_VAULT_ADDRESS is configured
+    import os
+    from circles.models import Circle, Membership
+    
+    vault_address = os.environ.get("CIRCLE_VAULT_ADDRESS", "").lower().strip()
+    if vault_address:
+        circle, _ = Circle.objects.get_or_create(
+            contract_address=vault_address,
+            defaults={
+                "name": "PayLoop Demo Circle",
+                "admin_wallet": wallet.lower(),
+                "contribution_amount": 10.00,
+                "contribution_frequency": "monthly",
+            }
+        )
+        # Add user to this circle
+        Membership.objects.get_or_create(
+            circle=circle,
+            user=user,
+            defaults={"role": "member"}
+        )
 
     # Generate JWT tokens
     refresh = RefreshToken.for_user(user)

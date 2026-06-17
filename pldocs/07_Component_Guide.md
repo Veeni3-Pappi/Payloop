@@ -469,14 +469,15 @@ ContributeModal → useContribute() → useWriteContract({
 }) → MetaMask opens → User confirms → Tx broadcast → useWaitForTransactionReceipt → isSuccess=true
 ```
 
-### 6.3 M-Pesa Bridge (Phase 3 — Django)
+### 6.3 M-Pesa Bridge (Phase 3 — Django & PayHero)
 ```
-Frontend → POST /api/mpesa/stkpush/ → Django → Daraja API → User's phone (STK Push)
-User enters PIN → Safaricom → POST /api/mpesa/callback/ → Django:
-  1. Verify MerchantRequestID
-  2. Convert KES to MATIC (1 KES = 0.000005 MATIC)
-  3. Call CircleVault.contribute() via web3.py
-  4. Store tx hash
+Frontend → POST /api/mpesa/stkpush/ → Django → PayHero API → Safaricom → User's phone (STK Push)
+User enters PIN → Safaricom → PayHero Webhook → POST /api/mpesa/callback/ → Django:
+  1. Match callback external_reference with merchant_request_id in MpesaPayment
+  2. If status is SUCCESS/COMPLETED, update payment status
+  3. Convert KES to MATIC (1 KES = 0.000005 MATIC)
+  4. Trigger CircleVault.contribute() on Polygon Amoy via web3.py signed by backend wallet
+  5. Save contribution in the database with the resulting on-chain transaction hash
 ```
 
 ---

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views for the M-Pesa app (via PayHero aggregator).
 
 Provides:
@@ -129,6 +129,24 @@ def payment_callback(request):
         payment.mpesa_receipt_number = receipt
         payment.result_code = 0
         payment.result_description = "Payment successful"
+        
+        # Trigger the on-chain bridge transaction
+        from blockchain.bridge import trigger_on_chain_contribution
+        tx_hash = trigger_on_chain_contribution(payment.amount)
+        
+        if tx_hash:
+            # Create a Contribution record for tracking
+            from circles.models import Contribution
+            Contribution.objects.create(
+                circle=payment.circle,
+                user=payment.user,
+                amount=payment.amount,
+                tx_hash=tx_hash,
+                payment_method="mpesa",
+            )
+            logger.info("Recorded on-chain contribution in database for tx: %s", tx_hash)
+        else:
+            logger.error("On-chain bridge transaction failed for payment: %s", payment.id)
     else:
         payment.status = MpesaPayment.Status.FAILED
         payment.result_code = -1

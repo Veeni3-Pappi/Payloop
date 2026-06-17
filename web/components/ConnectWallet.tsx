@@ -3,16 +3,17 @@
 // ConnectWallet — MetaMask connect button with network check
 // ═══════════════════════════════════════════════════════════
 
-import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { truncateAddress } from "@/lib/utils";
 import { polygonAmoy } from "@/lib/wagmi";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ConnectWallet() {
   const { address, isConnected, chain } = useAccount();
   const { connect, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
+  const { logout, isAuthenticating } = useAuth();
 
   const isWrongNetwork = isConnected && chain?.id !== polygonAmoy.id;
 
@@ -55,10 +56,11 @@ export default function ConnectWallet() {
           </span>
         </div>
         <button
-          onClick={() => disconnect()}
+          onClick={() => logout()}
           className="btn-outline text-sm !px-4 !py-2"
+          disabled={isAuthenticating}
         >
-          Disconnect
+          {isAuthenticating ? "Signing..." : "Disconnect"}
         </button>
       </div>
     );
@@ -67,15 +69,15 @@ export default function ConnectWallet() {
   return (
     <button
       onClick={() => connect({ connector: injected() })}
-      disabled={isPending}
+      disabled={isPending || isAuthenticating}
       className="btn-glow text-sm flex items-center gap-2"
     >
-      {isPending ? (
+      {isPending || isAuthenticating ? (
         <Spinner />
       ) : (
         <MetaMaskIcon />
       )}
-      {isPending ? "Connecting…" : "Connect Wallet"}
+      {isPending ? "Connecting…" : isAuthenticating ? "Authenticating…" : "Connect Wallet"}
     </button>
   );
 }
