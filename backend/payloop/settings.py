@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "accounts",
     "circles",
     "mpesa",
+    "notifications",
 ]
 
 MIDDLEWARE = [

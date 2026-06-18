@@ -145,6 +145,19 @@ def payment_callback(request):
                 payment_method="mpesa",
             )
             logger.info("Recorded on-chain contribution in database for tx: %s", tx_hash)
+
+            # Send push notification
+            if payment.user:
+                try:
+                    from notifications.services import notify_contribution_received
+                    circle_name = payment.circle.name if payment.circle else "PayLoop"
+                    notify_contribution_received(
+                        user=payment.user,
+                        circle_name=circle_name,
+                        amount=str(payment.amount),
+                    )
+                except Exception as notif_exc:
+                    logger.warning("Notification failed: %s", notif_exc)
         else:
             logger.error("On-chain bridge transaction failed for payment: %s", payment.id)
     else:

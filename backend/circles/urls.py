@@ -31,4 +31,9 @@ urlpatterns = [
         views.circle_loans,
         name="circle-loans",
     ),
+    path(
+        "circles/<uuid:pk>/contributions/",
+        views.circle_contributions,
+        name="circle-contributions",
+    ),
 ]

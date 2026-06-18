@@ -2,10 +2,11 @@
 Views for the circles app.
 
 Provides:
-- CircleViewSet  — full CRUD for savings circles.
-- add_member     — POST endpoint to invite a user by wallet address.
-- circle_loans   — GET endpoint listing loans for a specific circle.
-- credit_score_view — public GET endpoint returning a mock credit score.
+- CircleViewSet        — full CRUD for savings circles.
+- add_member           — POST endpoint to invite a user by wallet address.
+- circle_loans         — GET endpoint listing loans for a specific circle.
+- circle_contributions — GET endpoint listing contributions for a circle.
+- credit_score_view    — public GET endpoint reading on-chain credit score.
 """
 
 from rest_framework import status, viewsets
@@ -15,9 +16,10 @@ from rest_framework.response import Response
 
 from accounts.models import User
 
-from .models import Circle, LoanRequest, Membership
+from .models import Circle, Contribution, LoanRequest, Membership
 from .serializers import (
     CircleSerializer,
+    ContributionSerializer,
     LoanRequestSerializer,
     MembershipSerializer,
 )
@@ -154,21 +156,48 @@ def circle_loans(request, pk):
 
 
 # ------------------------------------------------------------------
-# Mock credit score
+# List contributions for a circle
+# ------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def circle_contributions(request, pk):
+    """
+    List all contributions for a given circle.
+
+    **GET** ``/api/circles/<pk>/contributions/``
+
+    Returns a list of ``Contribution`` objects ordered by most recent
+    first.
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    contributions = Contribution.objects.filter(circle=circle)
+    serializer = ContributionSerializer(contributions, many=True)
+    return Response(serializer.data)
+
+
+# ------------------------------------------------------------------
+# Credit score (on-chain read with fallback)
 # ------------------------------------------------------------------
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def credit_score_view(request, wallet):
     """
-    Return a mock credit score for the given wallet address.
+    Return the credit score for a wallet address.
 
     **GET** ``/api/score/<wallet>/``
 
-    This is a public endpoint (no authentication required) intended
-    for demonstration / MVP purposes.  A real implementation would
-    query on-chain repayment history and off-chain records to compute
-    a meaningful score.
+    This is a public endpoint (no authentication required).
+    Reads the score from the CreditScore smart contract on Polygon Amoy
+    when configured; falls back to a default score of 500 otherwise.
 
     Response shape::
 
@@ -179,9 +208,87 @@ def credit_score_view(request, wallet):
                 "on_time": 0,
                 "missed": 0,
                 "repaid": 0
-            }
+            },
+            "source": "blockchain" | "default"
         }
     """
+    import os
+    credit_score_address = os.environ.get("CREDIT_SCORE_ADDRESS", "").strip()
+
+    # Try reading from on-chain CreditScore contract
+    if credit_score_address:
+        try:
+            from web3 import Web3
+
+            rpc_url = os.environ.get(
+                "POLYGON_RPC_URL", "https://rpc-amoy.polygon.technology"
+            )
+            w3 = Web3(Web3.HTTPProvider(rpc_url))
+
+            # Minimal ABI for getScore and getScoreData
+            credit_abi = [
+                {
+                    "inputs": [{"internalType": "address", "name": "wallet", "type": "address"}],
+                    "name": "getScore",
+                    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                    "stateMutability": "view",
+                    "type": "function",
+                },
+                {
+                    "inputs": [{"internalType": "address", "name": "wallet", "type": "address"}],
+                    "name": "getScoreData",
+                    "outputs": [
+                        {"internalType": "uint256", "name": "score", "type": "uint256"},
+                        {"internalType": "uint256", "name": "onTimeCount", "type": "uint256"},
+                        {"internalType": "uint256", "name": "missedCount", "type": "uint256"},
+                        {"internalType": "uint256", "name": "repaidCount", "type": "uint256"},
+                        {"internalType": "uint256", "name": "lastUpdated", "type": "uint256"},
+                    ],
+                    "stateMutability": "view",
+                    "type": "function",
+                },
+            ]
+
+            contract = w3.eth.contract(
+                address=Web3.to_checksum_address(credit_score_address),
+                abi=credit_abi,
+            )
+
+            checksum_wallet = Web3.to_checksum_address(wallet)
+
+            # Try getScoreData first (full breakdown)
+            try:
+                data = contract.functions.getScoreData(checksum_wallet).call()
+                return Response({
+                    "wallet": wallet,
+                    "score": data[0],
+                    "breakdown": {
+                        "on_time": data[1],
+                        "missed": data[2],
+                        "repaid": data[3],
+                    },
+                    "source": "blockchain",
+                })
+            except Exception:
+                # Fall back to just getScore
+                score = contract.functions.getScore(checksum_wallet).call()
+                return Response({
+                    "wallet": wallet,
+                    "score": score,
+                    "breakdown": {
+                        "on_time": 0,
+                        "missed": 0,
+                        "repaid": 0,
+                    },
+                    "source": "blockchain",
+                })
+
+        except Exception as exc:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("On-chain credit score read failed: %s", exc)
+
+    # Fallback: return default score
     return Response({
         "wallet": wallet,
         "score": 500,
@@ -190,4 +297,5 @@ def credit_score_view(request, wallet):
             "missed": 0,
             "repaid": 0,
         },
+        "source": "default",
     })
