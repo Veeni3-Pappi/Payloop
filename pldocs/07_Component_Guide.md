@@ -502,10 +502,79 @@ vercel deploy
 ### 7.3 Backend → Railway (Phase 3)
 ```bash
 cd backend
+source venv/bin/activate  # Or create: python3 -m venv venv
 railway login && railway init && railway up
 # Set env vars in Railway dashboard
 ```
 
 ---
 
-*End of Component Guide*
+## 8. Django Backend (Phase 3)
+
+### 8.1 Project Structure
+```
+backend/
+├── payloop/           # Django project config
+│   ├── settings.py       # DB, CORS, JWT, M-Pesa, blockchain config
+│   ├── urls.py           # Root URL routing
+│   ├── wsgi.py / asgi.py
+├── accounts/          # Wallet-based auth
+│   ├── models.py         # Custom User (wallet_address as USERNAME_FIELD)
+│   ├── managers.py       # WalletUserManager (set_unusable_password)
+│   ├── serializers.py    # WalletAuthSerializer (eth_account signature verify)
+│   ├── views.py          # verify_wallet() + health_check()
+│   └── admin.py          # Custom UserAdmin
+├── circles/           # Core savings circle logic
+│   ├── models.py         # Circle, Membership, Contribution, LoanRequest
+│   ├── serializers.py    # All 4 model serializers + nested UserSerializer
+│   ├── views.py          # CircleViewSet + add_member + circle_loans + circle_contributions + credit_score_view
+│   └── admin.py          # All 4 models registered
+├── mpesa/             # M-Pesa payment integration
+│   ├── models.py         # MpesaPayment (STK Push tracking)
+│   ├── payhero_client.py # PayHero aggregator REST client
+│   ├── daraja.py         # Direct Daraja API client (alternative)
+│   ├── intasend_client.py# IntaSend client (alternative)
+│   ├── serializers.py    # StkPushSerializer + MpesaPaymentSerializer
+│   ├── views.py          # stk_push_view + payment_callback + payment_status
+│   └── admin.py          # MpesaPayment admin
+├── blockchain/        # On-chain interaction layer
+│   ├── abi.py            # CircleVault ABI (minimal, for web3.py)
+│   └── bridge.py         # KES→MATIC conversion + contribute() via web3.py
+├── notifications/     # Push notification service
+│   ├── models.py         # Notification model (FCM tracking)
+│   ├── services.py       # send_push_notification() + helpers
+│   └── admin.py          # Notification admin
+└── venv/              # Python virtual environment
+```
+
+### 8.2 Authentication Flow
+```
+MetaMask → personal_sign(message) → Frontend sends {wallet, signature, message}
+→ POST /api/auth/verify-wallet/
+→ WalletAuthSerializer.validate():
+    1. encode_defunct(text=message)
+    2. Account.recover_message(msg, signature)
+    3. Compare recovered address == wallet_address
+→ User.objects.get_or_create(wallet_address=wallet)
+→ RefreshToken.for_user(user) → {access_token, refresh_token}
+```
+
+### 8.3 Credit Score API (On-Chain Read)
+The `credit_score_view` endpoint reads directly from the CreditScore.sol contract:
+1. If `CREDIT_SCORE_ADDRESS` is set → tries `getScoreData(wallet)` on-chain
+2. Falls back to `getScore(wallet)` if `getScoreData` fails
+3. Returns `{"source": "default", "score": 500}` if contract not deployed
+
+### 8.4 Notification System
+`notifications/services.py` provides high-level notification functions:
+- `notify_contribution_received(user, circle_name, amount)`
+- `notify_loan_request(members, borrower_name, amount, circle_name)`
+- `notify_loan_approved(user, amount, circle_name)`
+- `notify_score_updated(user, new_score, reason)`
+
+All functions record the notification in DB regardless of FCM availability.
+If Firebase is not configured, notifications are logged but not delivered (graceful degradation).
+
+---
+
+*End of Component Guide — Version 2.0*
