@@ -78,7 +78,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-[var(--bg-secondary)] border-r border-[var(--glass-border)] flex flex-col">
+    <aside className="sidebar-desktop w-64 min-h-screen bg-[var(--bg-secondary)] border-r border-[var(--glass-border)] flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-[var(--glass-border)]">
         <Link href="/" className="flex items-center gap-3">

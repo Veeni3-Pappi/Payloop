@@ -1,5 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import ConnectWallet from "@/components/ConnectWallet";
+import MobileBottomNav from "@/components/MobileBottomNav";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,15 +9,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex-1 flex flex-col">
         {/* Top bar */}
-        <header className="h-16 border-b border-[var(--glass-border)] flex items-center justify-between px-8 bg-[var(--bg-secondary)]">
+        <header className="h-16 border-b border-[var(--glass-border)] flex items-center justify-between px-4 sm:px-8 bg-[var(--bg-secondary)]">
           <h2 className="text-sm font-medium text-[var(--text-secondary)]">PayLoop Dashboard</h2>
           <ConnectWallet />
         </header>
         {/* Page content */}
-        <main className="flex-1 p-8 bg-mesh overflow-y-auto">
+        <main className="main-content-area flex-1 p-4 sm:p-8 bg-mesh overflow-y-auto">
           {children}
         </main>
       </div>
+      <MobileBottomNav />
+      <PWAInstallPrompt />
     </div>
   );
 }
