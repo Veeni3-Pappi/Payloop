@@ -2,10 +2,12 @@
 URL configuration for the circles app.
 
 Registers:
-- /api/circles/             — CircleViewSet (list / create)
-- /api/circles/<pk>/        — CircleViewSet (retrieve / update / delete)
-- /api/circles/<pk>/members/— add_member (POST)
-- /api/circles/<pk>/loans/  — circle_loans (GET)
+- /api/circles/                         — CircleViewSet (list / create)
+- /api/circles/<pk>/                    — CircleViewSet (retrieve / update / delete)
+- /api/circles/<pk>/members/            — list_members (GET) / add_member (POST)
+- /api/circles/<pk>/loans/              — circle_loans (GET) / create_loan (POST)
+- /api/circles/<pk>/loans/<loan>/vote/  — vote_loan (POST)
+- /api/circles/<pk>/contributions/      — circle_contributions (GET)
 
 Note: ``credit_score_view`` is registered at the project-level urls.py
 as ``/api/score/<wallet>/`` because it is not circle-scoped.
@@ -23,13 +25,18 @@ urlpatterns = [
     path("", include(router.urls)),
     path(
         "circles/<uuid:pk>/members/",
-        views.add_member,
-        name="circle-add-member",
+        views.circle_members,
+        name="circle-members",
     ),
     path(
         "circles/<uuid:pk>/loans/",
-        views.circle_loans,
+        views.circle_loans_router,
         name="circle-loans",
+    ),
+    path(
+        "circles/<uuid:pk>/loans/<uuid:loan_pk>/vote/",
+        views.vote_loan,
+        name="circle-loan-vote",
     ),
     path(
         "circles/<uuid:pk>/contributions/",

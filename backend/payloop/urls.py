@@ -1,7 +1,7 @@
 """
 PayLoop root URL configuration.
 
-Routes API traffic to the accounts, circles, and mpesa apps.
+Routes API traffic to the accounts, circles, mpesa, and notifications apps.
 """
 
 from django.contrib import admin
@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/auth/", include("accounts.urls")),
     path("api/circles/", include("circles.urls")),
     path("api/mpesa/", include("mpesa.urls")),
+    path("api/notifications/", include("notifications.urls")),
 
     # Stand-alone credit-score lookup by wallet address
     path(

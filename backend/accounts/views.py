@@ -1,14 +1,15 @@
 """
-Views for wallet-based authentication.
+Views for the accounts app.
 
-VerifyWalletView accepts a signed message from MetaMask, verifies
-the signature using eth_account, creates the user if needed, and
-returns JWT access + refresh tokens.
+Provides:
+- verify_wallet   — POST to authenticate via MetaMask signature.
+- health_check    — GET health check endpoint.
+- user_profile    — GET / PATCH to read or update the current user's profile.
 """
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -90,3 +91,60 @@ def verify_wallet(request):
 def health_check(request):
     """Simple health check endpoint."""
     return Response({"status": "ok", "service": "payloop-backend"})
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    """
+    Get or update the authenticated user's profile.
+
+    **GET** ``/api/auth/profile/``
+
+    Response::
+
+        {
+            "wallet_address": "0x...",
+            "display_name": "Alice",
+            "phone_number": "0712345678",
+            "created_at": "2026-06-20T..."
+        }
+
+    **PATCH** ``/api/auth/profile/``
+
+    Request body (all fields optional)::
+
+        {
+            "display_name": "Alice",
+            "phone_number": "0712345678",
+            "fcm_token": "..."
+        }
+    """
+    user = request.user
+
+    if request.method == "GET":
+        return Response({
+            "wallet_address": user.wallet_address,
+            "display_name": user.display_name,
+            "phone_number": user.phone_number,
+            "created_at": user.created_at.isoformat(),
+        })
+
+    # PATCH — update allowed fields
+    allowed_fields = ["display_name", "phone_number", "fcm_token"]
+    updated = []
+
+    for field in allowed_fields:
+        if field in request.data:
+            setattr(user, field, request.data[field])
+            updated.append(field)
+
+    if updated:
+        user.save(update_fields=updated)
+
+    return Response({
+        "wallet_address": user.wallet_address,
+        "display_name": user.display_name,
+        "phone_number": user.phone_number,
+        "updated_fields": updated,
+    })

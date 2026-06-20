@@ -52,10 +52,30 @@ export async function verifyWallet(
   );
 }
 
+// ── User Profile ───────────────────────────────────────────
+
+export async function getProfile(token: string) {
+  return apiFetch<UserProfile>("/api/auth/profile/", { token });
+}
+
+export async function updateProfile(
+  data: { display_name?: string; phone_number?: string; fcm_token?: string },
+  token: string
+) {
+  return apiFetch<UserProfile & { updated_fields: string[] }>(
+    "/api/auth/profile/",
+    {
+      method: "PATCH",
+      body: data as unknown as Record<string, unknown>,
+      token,
+    }
+  );
+}
+
 // ── Circles ────────────────────────────────────────────────
 
 export async function getCircles(token: string) {
-  return apiFetch<Circle[]>("/api/circles/", { token });
+  return apiFetch<Circle[]>("/api/circles/circles/", { token });
 }
 
 export async function createCircle(
@@ -68,7 +88,7 @@ export async function createCircle(
   },
   token: string
 ) {
-  return apiFetch<Circle>("/api/circles/", {
+  return apiFetch<Circle>("/api/circles/circles/", {
     method: "POST",
     body: data as unknown as Record<string, unknown>,
     token,
@@ -76,7 +96,16 @@ export async function createCircle(
 }
 
 export async function getCircleDetail(id: string, token: string) {
-  return apiFetch<Circle>(`/api/circles/${id}/`, { token });
+  return apiFetch<Circle>(`/api/circles/circles/${id}/`, { token });
+}
+
+// ── Members ────────────────────────────────────────────────
+
+export async function getMembers(circleId: string, token: string) {
+  return apiFetch<MembershipData[]>(
+    `/api/circles/circles/${circleId}/members/`,
+    { token }
+  );
 }
 
 export async function addMember(
@@ -84,17 +113,67 @@ export async function addMember(
   walletAddress: string,
   token: string
 ) {
-  return apiFetch(`/api/circles/${circleId}/members/`, {
-    method: "POST",
-    body: { wallet_address: walletAddress },
-    token,
-  });
+  return apiFetch<MembershipData>(
+    `/api/circles/circles/${circleId}/members/`,
+    {
+      method: "POST",
+      body: { wallet_address: walletAddress },
+      token,
+    }
+  );
 }
 
 // ── Loans ──────────────────────────────────────────────────
 
 export async function getLoans(circleId: string, token: string) {
-  return apiFetch<LoanRequest[]>(`/api/circles/${circleId}/loans/`, { token });
+  return apiFetch<LoanRequest[]>(
+    `/api/circles/circles/${circleId}/loans/`,
+    { token }
+  );
+}
+
+export async function createLoan(
+  circleId: string,
+  data: {
+    amount_matic: string;
+    reason: string;
+    repayment_days: number;
+  },
+  token: string
+) {
+  return apiFetch<LoanRequest>(
+    `/api/circles/circles/${circleId}/loans/`,
+    {
+      method: "POST",
+      body: data as unknown as Record<string, unknown>,
+      token,
+    }
+  );
+}
+
+export async function voteLoan(
+  circleId: string,
+  loanId: string,
+  approve: boolean,
+  token: string
+) {
+  return apiFetch<{ detail: string; loan_id: string; status: string }>(
+    `/api/circles/circles/${circleId}/loans/${loanId}/vote/`,
+    {
+      method: "POST",
+      body: { approve },
+      token,
+    }
+  );
+}
+
+// ── Contributions ──────────────────────────────────────────
+
+export async function getContributions(circleId: string, token: string) {
+  return apiFetch<ContributionData[]>(
+    `/api/circles/circles/${circleId}/contributions/`,
+    { token }
+  );
 }
 
 // ── Credit Score ───────────────────────────────────────────
@@ -116,7 +195,7 @@ export async function initiateStkPush(
   },
   token: string
 ) {
-  return apiFetch<{ checkout_request_id: string; response_description: string }>(
+  return apiFetch<{ payment_id: string; reference: string; status: string }>(
     "/api/mpesa/stkpush/",
     {
       method: "POST",
@@ -126,7 +205,38 @@ export async function initiateStkPush(
   );
 }
 
+// ── Notifications ──────────────────────────────────────────
+
+export async function getNotifications(token: string, unreadOnly = false) {
+  const query = unreadOnly ? "?unread=true" : "";
+  return apiFetch<NotificationData[]>(
+    `/api/notifications/${query}`,
+    { token }
+  );
+}
+
+export async function markNotificationRead(id: string, token: string) {
+  return apiFetch<{ detail: string }>(
+    `/api/notifications/${id}/read/`,
+    { method: "PATCH", token }
+  );
+}
+
+export async function markAllNotificationsRead(token: string) {
+  return apiFetch<{ detail: string }>(
+    "/api/notifications/read-all/",
+    { method: "PATCH", token }
+  );
+}
+
 // ── Types ──────────────────────────────────────────────────
+
+export interface UserProfile {
+  wallet_address: string;
+  display_name: string;
+  phone_number: string;
+  created_at: string;
+}
 
 export interface Circle {
   id: string;
@@ -139,14 +249,46 @@ export interface Circle {
   created_at: string;
 }
 
+export interface MembershipData {
+  id: string;
+  circle: string;
+  user: {
+    wallet_address: string;
+    display_name: string;
+  };
+  role: string;
+  joined_at: string;
+}
+
 export interface LoanRequest {
   id: string;
   circle: string;
+  borrower: number;
   borrower_wallet: string;
   amount_matic: string;
   reason: string;
   repayment_days: number;
   status: string;
   on_chain_loan_id: number | null;
+  created_at: string;
+}
+
+export interface ContributionData {
+  id: string;
+  circle: string;
+  user: number;
+  amount: string;
+  tx_hash: string;
+  payment_method: string;
+  created_at: string;
+}
+
+export interface NotificationData {
+  id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  status: string;
   created_at: string;
 }

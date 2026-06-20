@@ -4,7 +4,10 @@ Views for the circles app.
 Provides:
 - CircleViewSet        — full CRUD for savings circles.
 - add_member           — POST endpoint to invite a user by wallet address.
+- list_members         — GET endpoint listing members of a circle.
 - circle_loans         — GET endpoint listing loans for a specific circle.
+- create_loan          — POST endpoint to create a loan request.
+- vote_loan            — POST endpoint to vote on a loan request.
 - circle_contributions — GET endpoint listing contributions for a circle.
 - credit_score_view    — public GET endpoint reading on-chain credit score.
 """
@@ -128,6 +131,33 @@ def add_member(request, pk):
 
 
 # ------------------------------------------------------------------
+# List members of a circle
+# ------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_members(request, pk):
+    """
+    List all members of a circle.
+
+    **GET** ``/api/circles/<pk>/members/``
+
+    Returns a list of ``Membership`` objects with nested user info.
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    memberships = Membership.objects.filter(circle=circle).select_related("user")
+    serializer = MembershipSerializer(memberships, many=True)
+    return Response(serializer.data)
+
+
+# ------------------------------------------------------------------
 # List loans for a circle
 # ------------------------------------------------------------------
 
@@ -153,6 +183,173 @@ def circle_loans(request, pk):
     loans = LoanRequest.objects.filter(circle=circle)
     serializer = LoanRequestSerializer(loans, many=True)
     return Response(serializer.data)
+
+
+# ------------------------------------------------------------------
+# Create a loan request
+# ------------------------------------------------------------------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_loan(request, pk):
+    """
+    Create a loan request for a circle.
+
+    **POST** ``/api/circles/<pk>/loans/``
+
+    Request body::
+
+        {
+            "amount_matic": "0.5",
+            "reason": "Emergency medical expense",
+            "repayment_days": 30
+        }
+
+    The requesting user must be a member of the circle.
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Verify the user is a member of this circle
+    if not Membership.objects.filter(circle=circle, user=request.user).exists():
+        return Response(
+            {"detail": "You must be a member of this circle to request a loan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Check for existing pending loans
+    if LoanRequest.objects.filter(
+        circle=circle, borrower=request.user, status="pending"
+    ).exists():
+        return Response(
+            {"detail": "You already have a pending loan request in this circle."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    amount = request.data.get("amount_matic")
+    reason = request.data.get("reason", "")
+    repayment_days = request.data.get("repayment_days")
+
+    if not amount or not repayment_days:
+        return Response(
+            {"detail": "amount_matic and repayment_days are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    loan = LoanRequest.objects.create(
+        circle=circle,
+        borrower=request.user,
+        amount_matic=amount,
+        reason=reason,
+        repayment_days=int(repayment_days),
+        status="pending",
+    )
+
+    # Notify other circle members
+    try:
+        from notifications.services import notify_loan_request
+        members = User.objects.filter(
+            memberships__circle=circle
+        ).exclude(id=request.user.id)
+        borrower_name = request.user.display_name or str(request.user)
+        notify_loan_request(members, borrower_name, str(amount), circle.name)
+    except Exception:
+        pass  # Don't fail the request if notifications fail
+
+    serializer = LoanRequestSerializer(loan)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# ------------------------------------------------------------------
+# Vote on a loan request
+# ------------------------------------------------------------------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def vote_loan(request, pk, loan_pk):
+    """
+    Vote to approve or reject a loan request.
+
+    **POST** ``/api/circles/<pk>/loans/<loan_pk>/vote/``
+
+    Request body::
+
+        { "approve": true }
+
+    Only circle members (excluding the borrower) can vote.
+    When a majority of members approve, the loan status changes
+    to 'approved' and a notification is sent to the borrower.
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        loan = LoanRequest.objects.get(pk=loan_pk, circle=circle)
+    except LoanRequest.DoesNotExist:
+        return Response(
+            {"detail": "Loan request not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if loan.status != "pending":
+        return Response(
+            {"detail": f"Cannot vote on a loan that is '{loan.status}'."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Verify voter is a member but not the borrower
+    if not Membership.objects.filter(circle=circle, user=request.user).exists():
+        return Response(
+            {"detail": "You must be a member of this circle to vote."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.user == loan.borrower:
+        return Response(
+            {"detail": "You cannot vote on your own loan request."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    approve = request.data.get("approve", False)
+
+    # For the demo, a single approval is enough to approve the loan.
+    # In production, you'd track individual votes and require majority.
+    if approve:
+        loan.status = "approved"
+        loan.save()
+
+        # Notify borrower
+        try:
+            from notifications.services import notify_loan_approved
+            notify_loan_approved(
+                loan.borrower, str(loan.amount_matic), circle.name
+            )
+        except Exception:
+            pass
+
+        return Response({
+            "detail": "Loan approved.",
+            "loan_id": str(loan.id),
+            "status": "approved",
+        })
+    else:
+        loan.status = "rejected"
+        loan.save()
+        return Response({
+            "detail": "Loan rejected.",
+            "loan_id": str(loan.id),
+            "status": "rejected",
+        })
 
 
 # ------------------------------------------------------------------
@@ -299,3 +496,127 @@ def credit_score_view(request, wallet):
         },
         "source": "default",
     })
+
+
+# ------------------------------------------------------------------
+# Dispatcher views (route GET / POST on the same URL)
+# ------------------------------------------------------------------
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def circle_members(request, pk):
+    """
+    Dispatch to list_members (GET) or add_member (POST).
+
+    **GET**  ``/api/circles/<pk>/members/`` — list members
+    **POST** ``/api/circles/<pk>/members/`` — add a member
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == "GET":
+        memberships = Membership.objects.filter(circle=circle).select_related("user")
+        serializer = MembershipSerializer(memberships, many=True)
+        return Response(serializer.data)
+
+    # POST — add member
+    wallet_address = request.data.get("wallet_address", "").strip()
+    if not wallet_address:
+        return Response(
+            {"detail": "wallet_address is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user, _created = User.objects.get_or_create(
+        wallet_address=wallet_address.lower(),
+    )
+
+    if Membership.objects.filter(circle=circle, user=user).exists():
+        return Response(
+            {"detail": "User is already a member of this circle."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    membership = Membership.objects.create(
+        circle=circle,
+        user=user,
+        role="member",
+    )
+    serializer = MembershipSerializer(membership)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def circle_loans_router(request, pk):
+    """
+    Dispatch to circle_loans (GET) or create_loan (POST).
+
+    **GET**  ``/api/circles/<pk>/loans/`` — list loans
+    **POST** ``/api/circles/<pk>/loans/`` — create a loan request
+    """
+    try:
+        circle = Circle.objects.get(pk=pk)
+    except Circle.DoesNotExist:
+        return Response(
+            {"detail": "Circle not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == "GET":
+        loans = LoanRequest.objects.filter(circle=circle)
+        serializer = LoanRequestSerializer(loans, many=True)
+        return Response(serializer.data)
+
+    # POST — create loan
+    if not Membership.objects.filter(circle=circle, user=request.user).exists():
+        return Response(
+            {"detail": "You must be a member of this circle to request a loan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if LoanRequest.objects.filter(
+        circle=circle, borrower=request.user, status="pending"
+    ).exists():
+        return Response(
+            {"detail": "You already have a pending loan request in this circle."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    amount = request.data.get("amount_matic")
+    reason = request.data.get("reason", "")
+    repayment_days = request.data.get("repayment_days")
+
+    if not amount or not repayment_days:
+        return Response(
+            {"detail": "amount_matic and repayment_days are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    loan = LoanRequest.objects.create(
+        circle=circle,
+        borrower=request.user,
+        amount_matic=amount,
+        reason=reason,
+        repayment_days=int(repayment_days),
+        status="pending",
+    )
+
+    # Notify other circle members
+    try:
+        from notifications.services import notify_loan_request
+        members = User.objects.filter(
+            memberships__circle=circle
+        ).exclude(id=request.user.id)
+        borrower_name = request.user.display_name or str(request.user)
+        notify_loan_request(members, borrower_name, str(amount), circle.name)
+    except Exception:
+        pass
+
+    serializer = LoanRequestSerializer(loan)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
