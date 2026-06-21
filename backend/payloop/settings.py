@@ -177,12 +177,14 @@ SIMPLE_JWT = {
 }
 
 # ---------------------------------------------------------------------------
-# M-Pesa via PayHero aggregator (replaces direct Daraja)
+# M-Pesa via Safaricom Daraja API
 # ---------------------------------------------------------------------------
-PAYHERO_API_USERNAME = os.getenv("PAYHERO_API_USERNAME", "")
-PAYHERO_API_PASSWORD = os.getenv("PAYHERO_API_PASSWORD", "")
-PAYHERO_CHANNEL_ID = os.getenv("PAYHERO_CHANNEL_ID", "")
-PAYHERO_CALLBACK_URL = os.getenv("PAYHERO_CALLBACK_URL", "")
+MPESA_CONSUMER_KEY = os.getenv("MPESA_CONSUMER_KEY", "")
+MPESA_CONSUMER_SECRET = os.getenv("MPESA_CONSUMER_SECRET", "")
+MPESA_SHORTCODE = os.getenv("MPESA_SHORTCODE", "")
+MPESA_PASSKEY = os.getenv("MPESA_PASSKEY", "")
+MPESA_CALLBACK_URL = os.getenv("MPESA_CALLBACK_URL", "")
+MPESA_ENV = os.getenv("MPESA_ENV", "sandbox")
 
 # ---------------------------------------------------------------------------
 # Blockchain / Polygon Amoy testnet

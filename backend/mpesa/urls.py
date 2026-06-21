@@ -1,9 +1,9 @@
-﻿"""
+"""
 URL configuration for the mpesa app.
 
 Routes:
-- /api/mpesa/stkpush/            -- initiate STK Push via PayHero
-- /api/mpesa/callback/           -- webhook for PayHero callbacks
+- /api/mpesa/stkpush/            -- initiate STK Push via Daraja
+- /api/mpesa/callback/           -- webhook for Daraja callbacks
 - /api/mpesa/status/<reference>/ -- check payment status
 """
 

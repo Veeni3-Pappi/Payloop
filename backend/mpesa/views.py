@@ -1,9 +1,9 @@
 """
-Views for the M-Pesa app (via PayHero aggregator).
+Views for the M-Pesa app (via Safaricom Daraja API).
 
 Provides:
-- stk_push_view    -- POST to initiate STK Push via PayHero
-- payment_callback -- POST webhook endpoint PayHero calls on completion
+- stk_push_view    -- POST to initiate STK Push via Daraja
+- payment_callback -- POST webhook endpoint Safaricom calls on completion
 - payment_status   -- GET to check payment status by reference
 """
 
@@ -19,7 +19,7 @@ from accounts.models import User
 from circles.models import Circle
 from .models import MpesaPayment
 from .serializers import StkPushSerializer, MpesaPaymentSerializer
-from .payhero_client import PayHeroClient, PayHeroError
+from .daraja import DarajaClient, DarajaClientError
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def stk_push_view(request):
     """
-    Initiate an M-Pesa STK Push via PayHero.
+    Initiate an M-Pesa STK Push via Safaricom Daraja API.
 
     **POST** `/api/mpesa/stkpush/`
 
     Request body::
 
         {
-            "phone_number": "0712345678",
+            "phone_number": "254712345678",
             "amount": "500.00",
             "circle_id": "uuid-here",
             "wallet_address": "0x..."
@@ -61,15 +61,16 @@ def stk_push_view(request):
     # Generate unique reference
     reference = f"PL-{uuid.uuid4().hex[:8].upper()}"
 
-    # Initiate STK Push
-    client = PayHeroClient()
+    # Initiate STK Push via Daraja
+    client = DarajaClient()
     try:
         result = client.stk_push(
             phone_number=phone,
             amount=float(amount),
-            reference=reference,
+            account_reference=reference,
+            transaction_desc="PayLoop Contribution",
         )
-    except PayHeroError as exc:
+    except DarajaClientError as exc:
         return Response(
             {"detail": str(exc)},
             status=status.HTTP_502_BAD_GATEWAY,
@@ -81,8 +82,8 @@ def stk_push_view(request):
         amount=amount,
         circle=circle,
         user=request.user,
-        merchant_request_id=reference,
-        checkout_request_id=result.get("checkout_request_id", reference),
+        merchant_request_id=result.get("MerchantRequestID", reference),
+        checkout_request_id=result.get("CheckoutRequestID", reference),
         status=MpesaPayment.Status.PENDING,
     )
 
@@ -90,6 +91,7 @@ def stk_push_view(request):
         {
             "payment_id": str(payment.id),
             "reference": reference,
+            "checkout_request_id": result.get("CheckoutRequestID", ""),
             "status": "pending",
             "message": "STK Push sent. Check your phone.",
         },
@@ -101,39 +103,69 @@ def stk_push_view(request):
 @permission_classes([AllowAny])
 def payment_callback(request):
     """
-    Webhook endpoint called by PayHero when payment completes.
+    Webhook endpoint called by Safaricom Daraja when payment completes.
 
     **POST** `/api/mpesa/callback/`
 
-    PayHero sends payment status updates here. We update the
-    MpesaPayment record and log the result.
+    Daraja sends an STK Push callback with this structure::
+
+        {
+            "Body": {
+                "stkCallback": {
+                    "MerchantRequestID": "...",
+                    "CheckoutRequestID": "...",
+                    "ResultCode": 0,
+                    "ResultDesc": "...",
+                    "CallbackMetadata": {
+                        "Item": [...]
+                    }
+                }
+            }
+        }
     """
     data = request.data
-    logger.info("PayHero callback received: %s", data)
+    logger.info("Daraja callback received: %s", data)
 
-    reference = data.get("external_reference", "")
-    result_status = data.get("status", "").upper()
-    receipt = data.get("provider_reference", "")
-
-    if not reference:
-        return Response({"detail": "Missing reference"}, status=400)
-
+    # Parse the Daraja callback structure
     try:
-        payment = MpesaPayment.objects.get(merchant_request_id=reference)
+        stk_callback = data["Body"]["stkCallback"]
+        merchant_request_id = stk_callback["MerchantRequestID"]
+        checkout_request_id = stk_callback["CheckoutRequestID"]
+        result_code = stk_callback["ResultCode"]
+        result_desc = stk_callback.get("ResultDesc", "")
+    except (KeyError, TypeError) as exc:
+        logger.warning("Malformed Daraja callback: %s", exc)
+        return Response({"detail": "Invalid callback format"}, status=400)
+
+    # Look up the payment by CheckoutRequestID
+    try:
+        payment = MpesaPayment.objects.get(checkout_request_id=checkout_request_id)
     except MpesaPayment.DoesNotExist:
-        logger.warning("Callback for unknown reference: %s", reference)
+        logger.warning("Callback for unknown CheckoutRequestID: %s", checkout_request_id)
         return Response({"detail": "Payment not found"}, status=404)
 
-    if result_status in ("SUCCESS", "COMPLETED"):
+    payment.result_code = result_code
+    payment.result_description = result_desc
+
+    if result_code == 0:
+        # Successful payment — extract metadata
         payment.status = MpesaPayment.Status.COMPLETED
-        payment.mpesa_receipt_number = receipt
-        payment.result_code = 0
-        payment.result_description = "Payment successful"
-        
+
+        # Parse callback metadata items
+        callback_metadata = stk_callback.get("CallbackMetadata", {})
+        items = callback_metadata.get("Item", [])
+        for item in items:
+            name = item.get("Name", "")
+            value = item.get("Value", "")
+            if name == "MpesaReceiptNumber":
+                payment.mpesa_receipt_number = str(value)
+            elif name == "TransactionDate":
+                payment.transaction_date = str(value)
+
         # Trigger the on-chain bridge transaction
         from blockchain.bridge import trigger_on_chain_contribution
         tx_hash = trigger_on_chain_contribution(payment.amount)
-        
+
         if tx_hash:
             # Create a Contribution record for tracking
             from circles.models import Contribution
@@ -161,9 +193,8 @@ def payment_callback(request):
         else:
             logger.error("On-chain bridge transaction failed for payment: %s", payment.id)
     else:
+        # Payment failed or was cancelled
         payment.status = MpesaPayment.Status.FAILED
-        payment.result_code = -1
-        payment.result_description = data.get("description", "Payment failed")
 
     payment.save()
 

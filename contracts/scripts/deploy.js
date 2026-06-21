@@ -1,52 +1,83 @@
+/**
+ * PayLoop — Contract Deployment Script (Hardhat 3)
+ *
+ * Deploys all 4 contracts to the configured network:
+ *   1. LoopToken (ERC-20)
+ *   2. CreditScore
+ *   3. CircleVault
+ *   4. LendingPool (receives CircleVault address)
+ *
+ * Usage:
+ *   npx hardhat run scripts/deploy.js --network amoy
+ */
+
 import hre from "hardhat";
+import { ethers } from "ethers";
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", (await hre.ethers.provider.getBalance(deployer.address)).toString());
+  // Connect to the configured network
+  const connection = await hre.network.connect();
+  const provider = new ethers.BrowserProvider(connection.provider);
+  const deployer = await provider.getSigner();
+  const deployerAddress = await deployer.getAddress();
+
+  console.log("Deploying contracts with account:", deployerAddress);
+
+  const balance = await provider.getBalance(deployerAddress);
+  console.log("Account balance:", ethers.formatEther(balance), "MATIC");
+
+  if (balance === 0n) {
+    console.error("ERROR: Deployer wallet has no balance. Get testnet MATIC first.");
+    process.exit(1);
+  }
+
+  // Helper: read compiled artifact and deploy
+  async function deployContract(name, constructorArgs = []) {
+    console.log(`\n--- Deploying ${name} ---`);
+    const artifact = await hre.artifacts.readArtifact(name);
+    const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, deployer);
+    const contract = await factory.deploy(...constructorArgs);
+    await contract.waitForDeployment();
+    const address = await contract.getAddress();
+    console.log(`${name} deployed to:`, address);
+    return { contract, address };
+  }
 
   // 1. Deploy LoopToken
-  console.log("\n--- Deploying LoopToken ---");
-  const LoopToken = await hre.ethers.getContractFactory("LoopToken");
-  const loopToken = await LoopToken.deploy(deployer.address);
-  await loopToken.waitForDeployment();
-  const loopTokenAddress = await loopToken.getAddress();
-  console.log("LoopToken deployed to:", loopTokenAddress);
+  const loopToken = await deployContract("LoopToken", [deployerAddress]);
 
   // 2. Deploy CreditScore
-  console.log("\n--- Deploying CreditScore ---");
-  const CreditScore = await hre.ethers.getContractFactory("CreditScore");
-  const creditScore = await CreditScore.deploy(deployer.address);
-  await creditScore.waitForDeployment();
-  const creditScoreAddress = await creditScore.getAddress();
-  console.log("CreditScore deployed to:", creditScoreAddress);
+  const creditScore = await deployContract("CreditScore", [deployerAddress]);
 
   // 3. Deploy CircleVault
-  console.log("\n--- Deploying CircleVault ---");
-  const CircleVault = await hre.ethers.getContractFactory("CircleVault");
-  const circleVault = await CircleVault.deploy(deployer.address);
-  await circleVault.waitForDeployment();
-  const circleVaultAddress = await circleVault.getAddress();
-  console.log("CircleVault deployed to:", circleVaultAddress);
+  const circleVault = await deployContract("CircleVault", [deployerAddress]);
 
   // 4. Deploy LendingPool (needs vault address)
-  console.log("\n--- Deploying LendingPool ---");
-  const LendingPool = await hre.ethers.getContractFactory("LendingPool");
-  const lendingPool = await LendingPool.deploy(deployer.address, circleVaultAddress);
-  await lendingPool.waitForDeployment();
-  const lendingPoolAddress = await lendingPool.getAddress();
-  console.log("LendingPool deployed to:", lendingPoolAddress);
+  const lendingPool = await deployContract("LendingPool", [deployerAddress, circleVault.address]);
 
   // Summary
   console.log("\n═══════════════════════════════════════════");
   console.log("  PayLoop Contract Addresses");
   console.log("═══════════════════════════════════════════");
-  console.log(`  LoopToken:    ${loopTokenAddress}`);
-  console.log(`  CreditScore:  ${creditScoreAddress}`);
-  console.log(`  CircleVault:  ${circleVaultAddress}`);
-  console.log(`  LendingPool:  ${lendingPoolAddress}`);
+  console.log(`  LoopToken:    ${loopToken.address}`);
+  console.log(`  CreditScore:  ${creditScore.address}`);
+  console.log(`  CircleVault:  ${circleVault.address}`);
+  console.log(`  LendingPool:  ${lendingPool.address}`);
   console.log("═══════════════════════════════════════════");
   console.log("\nCopy these addresses into your .env files!");
+  console.log("\n# For backend/.env:");
+  console.log(`CIRCLE_VAULT_ADDRESS=${circleVault.address}`);
+  console.log(`LENDING_POOL_ADDRESS=${lendingPool.address}`);
+  console.log(`CREDIT_SCORE_ADDRESS=${creditScore.address}`);
+  console.log(`LOOP_TOKEN_ADDRESS=${loopToken.address}`);
+  console.log("\n# For web/.env.local:");
+  console.log(`NEXT_PUBLIC_CIRCLE_VAULT_ADDRESS=${circleVault.address}`);
+  console.log(`NEXT_PUBLIC_LENDING_POOL_ADDRESS=${lendingPool.address}`);
+  console.log(`NEXT_PUBLIC_CREDIT_SCORE_ADDRESS=${creditScore.address}`);
+  console.log(`NEXT_PUBLIC_LOOP_TOKEN_ADDRESS=${loopToken.address}`);
+
+  // Close the network connection
+  await connection.close();
 }
 
 main()
