@@ -12,13 +12,19 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function PushNotifications() {
   const token = useAuthToken();
-  const { supported, permission, isRegistering, enablePush } =
+  const { supported, permission, registered, isRegistering, enablePush } =
     usePushNotifications(token);
 
-  // Hide the prompt unless the user is signed in, FCM is configured/supported,
-  // and permission hasn't been decided yet.
+  // Show the prompt when the user is signed in, FCM is supported, the user
+  // hasn't blocked notifications, and no device token has been registered yet.
+  // (Stays visible when permission is already "granted" but registration
+  // failed, so the user can retry.)
   const showPrompt =
-    Boolean(token) && supported && permission === "default";
+    Boolean(token) &&
+    supported &&
+    !registered &&
+    permission !== "denied" &&
+    permission !== "unsupported";
 
   if (!showPrompt) return null;
 

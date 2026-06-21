@@ -22,6 +22,7 @@ django.setup()
 from mpesa.daraja import DarajaClient, DarajaClientError  # noqa: E402
 
 
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python test_stk.py <2547XXXXXXXX> [amount]")

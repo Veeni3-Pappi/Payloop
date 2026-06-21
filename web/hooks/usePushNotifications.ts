@@ -32,13 +32,18 @@ async function registerFcmServiceWorker(): Promise<ServiceWorkerRegistration> {
     messagingSenderId: firebaseConfig.messagingSenderId ?? "",
     appId: firebaseConfig.appId ?? "",
   });
-  return navigator.serviceWorker.register(
-    `/firebase-messaging-sw.js?${params.toString()}`
+  const registration = await navigator.serviceWorker.register(
+    `/firebase-messaging-sw.js?${params.toString()}`,
+    { scope: "/" }
   );
+  // Make sure the worker is active before we ask for a push subscription.
+  await navigator.serviceWorker.ready;
+  return registration;
 }
 
 export function usePushNotifications(authToken: string | null) {
   const [permission, setPermission] = useState<PermissionState>("default");
+  const [registered, setRegistered] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const listenerBound = useRef(false);
 
@@ -51,6 +56,7 @@ export function usePushNotifications(authToken: string | null) {
       return;
     }
     setPermission(Notification.permission as PermissionState);
+    setRegistered(Boolean(localStorage.getItem(FCM_TOKEN_KEY)));
   }, [supported]);
 
   const enablePush = useCallback(async () => {
@@ -80,6 +86,16 @@ export function usePushNotifications(authToken: string | null) {
       }
 
       const registration = await registerFcmServiceWorker();
+
+      // Clear any stale push subscription (e.g. left by the old PWA worker
+      // or a previous VAPID key) — a mismatched key makes getToken abort.
+      try {
+        const existing = await registration.pushManager.getSubscription();
+        if (existing) await existing.unsubscribe();
+      } catch {
+        /* non-fatal */
+      }
+
       const { getToken } = await import("firebase/messaging");
       const fcmToken = await getToken(messaging, {
         vapidKey: VAPID_KEY,
@@ -91,17 +107,22 @@ export function usePushNotifications(authToken: string | null) {
         return;
       }
 
-      // Only hit the backend if the token changed since last time.
       if (localStorage.getItem(FCM_TOKEN_KEY) !== fcmToken) {
         await updateProfile({ fcm_token: fcmToken }, authToken);
         localStorage.setItem(FCM_TOKEN_KEY, fcmToken);
       }
-
+      setRegistered(true);
       toast.success("Push notifications enabled ✅");
     } catch (err: unknown) {
       console.error("[PayLoop] enablePush failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      const isPushServiceError =
+        err instanceof Error &&
+        (err.name === "AbortError" || /push service/i.test(msg));
       toast.error("Failed to enable notifications", {
-        description: err instanceof Error ? err.message : String(err),
+        description: isPushServiceError
+          ? "Your browser blocked the push service. In Brave, enable brave://settings/privacy → 'Use Google services for push messaging', or try Chrome."
+          : msg,
       });
     } finally {
       setIsRegistering(false);
@@ -134,6 +155,7 @@ export function usePushNotifications(authToken: string | null) {
   return {
     supported,
     permission,
+    registered,
     isRegistering,
     enablePush,
   };
