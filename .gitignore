@@ -44,6 +44,12 @@ __pycache__/
 venv/
 .venv/
 
+# Firebase service-account credentials (secret — never commit)
+firebase-credentials.json
+**/firebase-credentials.json
+**/serviceAccount*.json
+backend/firebase-*.json
+
 # Misc
 *.log
 coverage/

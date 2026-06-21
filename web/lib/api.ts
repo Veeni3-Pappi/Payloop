@@ -195,7 +195,13 @@ export async function initiateStkPush(
   },
   token: string
 ) {
-  return apiFetch<{ payment_id: string; reference: string; status: string }>(
+  return apiFetch<{
+    payment_id: string;
+    reference: string;
+    checkout_request_id: string;
+    status: string;
+    message: string;
+  }>(
     "/api/mpesa/stkpush/",
     {
       method: "POST",

@@ -7,6 +7,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { config } from "@/lib/wagmi";
 import { useState, type ReactNode } from "react";
+import PushNotifications from "@/components/PushNotifications";
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -25,6 +26,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         {children}
+        <PushNotifications />
       </QueryClientProvider>
     </WagmiProvider>
   );

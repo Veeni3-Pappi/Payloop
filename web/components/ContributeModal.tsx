@@ -101,7 +101,7 @@ export default function ContributeModal({
         );
 
         toast.success("STK Push initiated successfully!", {
-          description: response.response_description || "Check your phone for the M-Pesa PIN prompt.",
+          description: response.message || "Check your phone for the M-Pesa PIN prompt.",
         });
         
         setAmountKes("");
