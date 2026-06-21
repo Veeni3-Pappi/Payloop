@@ -50,9 +50,10 @@ PayLoop is a decentralized group savings and micro-lending platform that digitis
 | CreditLoop Score (0–1000) with QR code | ✅ |
 | Member management (add/remove) | ✅ |
 | Public transparency page | ✅ |
-| Smart contracts (4 contracts compiled) | ✅ |
-| M-Pesa integration | 🔜 Phase 3 |
-| Django backend API | 🔜 Phase 3 |
+| Smart contracts (4 contracts deployed to Amoy) | ✅ |
+| Django backend API | ✅ |
+| M-Pesa Daraja integration | ✅ |
+| Firebase FCM notifications | 🔜 |
 
 ---
 
@@ -129,6 +130,15 @@ Payloop/
 | **LoopToken** | ERC-20 "LOOP" rewards for on-time contributions |
 
 All contracts use OpenZeppelin `Ownable` for access control and target Solidity ^0.8.20.
+
+### Deployed Addresses (Polygon Amoy Testnet)
+
+| Contract | Address |
+|----------|---------|
+| **LoopToken** | `0x856BB4c9186515b4Cef937B82E50c84153139774` |
+| **CreditScore** | `0xbfeD8Ff69F68935b402ae95AeE2C0DD9A4e25C71` |
+| **CircleVault** | `0x9F2196B0dF4e5cEE0E43d19F185602c22055F4eD` |
+| **LendingPool** | `0xfFD93d42d303D1D9443732c81022659656490Ce8` |
 
 ---
 
