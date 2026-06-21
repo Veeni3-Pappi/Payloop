@@ -57,11 +57,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('[PayLoop] SW registered:', reg.scope))
-                    .catch(err => console.warn('[PayLoop] SW registration failed:', err));
-                });
+                var isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (isLocal) {
+                  // Dev: the caching PWA worker serves stale HMR assets and
+                  // causes reload loops. Remove it and clear its caches.
+                  // (The FCM worker, firebase-messaging-sw.js, is left intact.)
+                  navigator.serviceWorker.getRegistrations().then(function (regs) {
+                    regs.forEach(function (r) {
+                      var url = (r.active && r.active.scriptURL) || '';
+                      if (url.indexOf('/sw.js') !== -1) r.unregister();
+                    });
+                  });
+                  if (window.caches) {
+                    caches.keys().then(function (keys) {
+                      keys.forEach(function (k) {
+                        if (k.indexOf('payloop') !== -1) caches.delete(k);
+                      });
+                    });
+                  }
+                } else {
+                  window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('/sw.js')
+                      .then(function (reg) { console.log('[PayLoop] SW registered:', reg.scope); })
+                      .catch(function (err) { console.warn('[PayLoop] SW registration failed:', err); });
+                  });
+                }
               }
             `,
           }}

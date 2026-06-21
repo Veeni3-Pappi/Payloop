@@ -3,6 +3,7 @@
 // ConnectWallet — MetaMask connect button with network check
 // ═══════════════════════════════════════════════════════════
 
+import { useEffect, useState } from "react";
 import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { truncateAddress } from "@/lib/utils";
@@ -15,10 +16,28 @@ export default function ConnectWallet() {
   const { switchChain } = useSwitchChain();
   const { logout, isAuthenticating } = useAuth();
 
+  // Wallet/network state only exists in the browser. Render a stable
+  // placeholder until mounted so server HTML matches the first client
+  // render (avoids a hydration mismatch + reload loop).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const isWrongNetwork = isConnected && chain?.id !== polygonAmoy.id;
 
   // Check if MetaMask is available
   const hasEthereum = typeof window !== "undefined" && typeof window.ethereum !== "undefined";
+
+  if (!mounted) {
+    return (
+      <button
+        disabled
+        className="btn-glow text-sm flex items-center gap-2 opacity-70"
+      >
+        <MetaMaskIcon />
+        Connect Wallet
+      </button>
+    );
+  }
 
   if (!hasEthereum) {
     return (

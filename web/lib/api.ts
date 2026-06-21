@@ -36,6 +36,21 @@ async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<
   return res.json();
 }
 
+// DRF has PageNumberPagination enabled, so list endpoints return
+// { count, next, previous, results: [...] } rather than a bare array.
+// This helper tolerates both shapes and always yields an array.
+async function apiFetchList<T>(
+  endpoint: string,
+  options: ApiOptions = {}
+): Promise<T[]> {
+  const data = await apiFetch<T[] | { results: T[] }>(endpoint, options);
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray((data as { results?: T[] }).results)) {
+    return (data as { results: T[] }).results;
+  }
+  return [];
+}
+
 // ── Auth ───────────────────────────────────────────────────
 
 export async function verifyWallet(
@@ -75,7 +90,7 @@ export async function updateProfile(
 // ── Circles ────────────────────────────────────────────────
 
 export async function getCircles(token: string) {
-  return apiFetch<Circle[]>("/api/circles/circles/", { token });
+  return apiFetchList<Circle>("/api/circles/circles/", { token });
 }
 
 export async function createCircle(
@@ -102,7 +117,7 @@ export async function getCircleDetail(id: string, token: string) {
 // ── Members ────────────────────────────────────────────────
 
 export async function getMembers(circleId: string, token: string) {
-  return apiFetch<MembershipData[]>(
+  return apiFetchList<MembershipData>(
     `/api/circles/circles/${circleId}/members/`,
     { token }
   );
@@ -126,7 +141,7 @@ export async function addMember(
 // ── Loans ──────────────────────────────────────────────────
 
 export async function getLoans(circleId: string, token: string) {
-  return apiFetch<LoanRequest[]>(
+  return apiFetchList<LoanRequest>(
     `/api/circles/circles/${circleId}/loans/`,
     { token }
   );
@@ -170,7 +185,7 @@ export async function voteLoan(
 // ── Contributions ──────────────────────────────────────────
 
 export async function getContributions(circleId: string, token: string) {
-  return apiFetch<ContributionData[]>(
+  return apiFetchList<ContributionData>(
     `/api/circles/circles/${circleId}/contributions/`,
     { token }
   );
@@ -215,7 +230,7 @@ export async function initiateStkPush(
 
 export async function getNotifications(token: string, unreadOnly = false) {
   const query = unreadOnly ? "?unread=true" : "";
-  return apiFetch<NotificationData[]>(
+  return apiFetchList<NotificationData>(
     `/api/notifications/${query}`,
     { token }
   );
