@@ -5,6 +5,7 @@ import { useAllMembers, useAddMember, useRemoveMember } from "@/hooks/useCircleV
 import { truncateAddress } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Users, UserPlus, ExternalLink, Trash2 } from "lucide-react";
 
 export default function MembersPage() {
   const { address } = useAccount();
@@ -49,7 +50,8 @@ export default function MembersPage() {
         <div className="flex gap-3">
           <input type="text" value={newAddress} onChange={(e) => setNewAddress(e.target.value)}
             placeholder="0x..." className="input-field flex-1 font-mono text-sm" disabled={isAdding} />
-          <button type="submit" disabled={isAdding} className="btn-glow text-sm whitespace-nowrap">
+          <button type="submit" disabled={isAdding} className="btn-glow text-sm whitespace-nowrap flex items-center gap-2">
+            <UserPlus size={16} strokeWidth={2.5} />
             {isAdding ? "Adding…" : "Add Member"}
           </button>
         </div>
@@ -59,7 +61,9 @@ export default function MembersPage() {
       <div className="space-y-3">
         {memberList.length === 0 ? (
           <div className="glass-card p-12 text-center">
-            <div className="text-5xl mb-4">👥</div>
+            <div className="w-16 h-16 rounded-2xl bg-[var(--accent-teal)]/10 flex items-center justify-center mx-auto mb-4">
+              <Users size={32} className="text-[var(--accent-teal)]" strokeWidth={1.8} />
+            </div>
             <h3 className="text-lg font-semibold mb-2">No members yet</h3>
             <p className="text-sm text-[var(--text-muted)]">Add members by their wallet address above.</p>
           </div>
@@ -76,10 +80,14 @@ export default function MembersPage() {
                 </div>
               </div>
               <a href={`https://amoy.polygonscan.com/address/${addr}`} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-[var(--accent-teal)] hover:underline">PolygonScan →</a>
+                className="text-xs text-[var(--accent-teal)] hover:underline flex items-center gap-1">
+                PolygonScan <ExternalLink size={12} />
+              </a>
               {addr.toLowerCase() !== address?.toLowerCase() && (
                 <button onClick={() => removeMember(addr as `0x${string}`)} disabled={isRemoving}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors">Remove</button>
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
+                  <Trash2 size={13} /> Remove
+                </button>
               )}
             </div>
           ))

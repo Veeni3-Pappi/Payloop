@@ -4,6 +4,8 @@ import ConnectWallet from "@/components/ConnectWallet";
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Link2, Boxes, Gauge, ArrowRight } from "lucide-react";
+import { PolygonLogo } from "@/components/icons/BrandIcons";
 
 export default function LandingPage() {
   const { isConnected } = useAccount();
@@ -39,8 +41,8 @@ export default function LandingPage() {
             <div className="absolute -top-10 -right-20 w-60 h-60 bg-teal-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: "1s" }} />
           </div>
 
-          <div className="inline-block px-4 py-1.5 rounded-full border border-[var(--border-subtle)] text-xs font-medium text-[var(--accent-purple)] mb-6 animate-fade-in-up-delay-1">
-            🔗 Built on Polygon Amoy Testnet
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--border-subtle)] text-xs font-medium text-[var(--accent-purple)] mb-6 animate-fade-in-up-delay-1">
+            <Link2 size={14} /> Built on Polygon Amoy Testnet
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6 animate-fade-in-up-delay-1">
@@ -55,24 +57,32 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up-delay-3">
             <ConnectWallet />
-            <a href="/transparency" className="btn-outline text-sm">
-              View Public Transparency →
+            <a href="/transparency" className="btn-outline text-sm flex items-center gap-2">
+              View Public Transparency <ArrowRight size={15} />
             </a>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-6 mt-20 animate-fade-in-up-delay-3">
+          <div className="grid grid-cols-3 gap-4 sm:gap-6 mt-20 animate-fade-in-up-delay-3">
             {[
-              { label: "Smart Contracts", value: "4", icon: "⛓️" },
-              { label: "On-chain Score", value: "0–1000", icon: "📊" },
-              { label: "Network", value: "Polygon", icon: "🟣" },
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card p-5">
-                <div className="text-2xl mb-2">{stat.icon}</div>
-                <div className="text-xl font-bold text-[var(--text-primary)]">{stat.value}</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">{stat.label}</div>
-              </div>
-            ))}
+              { label: "Smart Contracts", value: "4", icon: Boxes, accent: "var(--accent-purple)" },
+              { label: "On-chain Score", value: "0–1000", icon: Gauge, accent: "var(--accent-blue)" },
+              { label: "Network", value: "Polygon", brand: true },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="glass-card p-5">
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3"
+                    style={{ background: stat.brand ? "rgba(130,71,229,0.15)" : `color-mix(in srgb, ${stat.accent} 16%, transparent)` }}
+                  >
+                    {stat.brand ? <PolygonLogo size={22} /> : Icon && <Icon size={22} style={{ color: stat.accent }} strokeWidth={2} />}
+                  </div>
+                  <div className="text-xl font-bold text-[var(--text-primary)]">{stat.value}</div>
+                  <div className="text-xs text-[var(--text-muted)] mt-1">{stat.label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </main>

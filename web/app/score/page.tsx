@@ -4,6 +4,7 @@ import { useAccount } from "wagmi";
 import CreditScoreCard from "@/components/CreditScoreCard";
 import QRCode from "react-qr-code";
 import { truncateAddress } from "@/lib/utils";
+import { Gauge, ExternalLink } from "lucide-react";
 
 export default function ScorePage() {
   const { address, isConnected } = useAccount();
@@ -11,8 +12,10 @@ export default function ScorePage() {
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="text-6xl mb-4">📊</div>
+      <div className="flex flex-col items-center justify-center h-full text-center">
+        <div className="w-20 h-20 rounded-2xl bg-[var(--accent-blue)]/10 flex items-center justify-center mb-5">
+          <Gauge size={44} className="text-[var(--accent-blue)]" strokeWidth={1.8} />
+        </div>
         <h2 className="text-2xl font-bold mb-2">Connect Wallet</h2>
         <p className="text-[var(--text-secondary)]">Connect to view your CreditLoop score.</p>
       </div>
@@ -40,8 +43,8 @@ export default function ScorePage() {
               Scan to view {truncateAddress(address || "")} on PolygonScan
             </p>
             <a href={scanUrl} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[var(--accent-teal)] hover:underline mt-2">
-              Open in browser →
+              className="text-xs text-[var(--accent-teal)] hover:underline mt-2 flex items-center gap-1">
+              Open in browser <ExternalLink size={12} />
             </a>
           </div>
 

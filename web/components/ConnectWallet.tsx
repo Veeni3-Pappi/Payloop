@@ -9,6 +9,8 @@ import { injected } from "wagmi/connectors";
 import { truncateAddress } from "@/lib/utils";
 import { polygonAmoy } from "@/lib/wagmi";
 import { useAuth } from "@/hooks/useAuth";
+import { MetaMaskLogo } from "@/components/icons/BrandIcons";
+import { AlertTriangle, LogOut } from "lucide-react";
 
 export default function ConnectWallet() {
   const { address, isConnected, chain } = useAccount();
@@ -33,7 +35,7 @@ export default function ConnectWallet() {
         disabled
         className="btn-glow text-sm flex items-center gap-2 opacity-70"
       >
-        <MetaMaskIcon />
+        <MetaMaskLogo />
         Connect Wallet
       </button>
     );
@@ -47,7 +49,7 @@ export default function ConnectWallet() {
         rel="noopener noreferrer"
         className="btn-glow text-sm flex items-center gap-2"
       >
-        <MetaMaskIcon />
+        <MetaMaskLogo />
         Install MetaMask
       </a>
     );
@@ -59,7 +61,7 @@ export default function ConnectWallet() {
         onClick={() => switchChain({ chainId: polygonAmoy.id })}
         className="btn-glow text-sm flex items-center gap-2 !bg-gradient-to-r !from-amber-500 !to-orange-500"
       >
-        <span className="text-lg">⚠️</span>
+        <AlertTriangle size={16} strokeWidth={2.5} />
         Switch to Amoy
       </button>
     );
@@ -76,9 +78,10 @@ export default function ConnectWallet() {
         </div>
         <button
           onClick={() => logout()}
-          className="btn-outline text-sm !px-4 !py-2"
+          className="btn-outline text-sm !px-4 !py-2 flex items-center gap-2"
           disabled={isAuthenticating}
         >
+          <LogOut size={15} strokeWidth={2.5} />
           {isAuthenticating ? "Signing..." : "Disconnect"}
         </button>
       </div>
@@ -94,35 +97,10 @@ export default function ConnectWallet() {
       {isPending || isAuthenticating ? (
         <Spinner />
       ) : (
-        <MetaMaskIcon />
+        <MetaMaskLogo />
       )}
       {isPending ? "Connecting…" : isAuthenticating ? "Authenticating…" : "Connect Wallet"}
     </button>
-  );
-}
-
-function MetaMaskIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M22.28 1L13.37 7.62l1.65-3.92L22.28 1z"
-        fill="#E17726"
-        stroke="#E17726"
-        strokeWidth="0.25"
-      />
-      <path
-        d="M1.72 1l8.82 6.68-1.56-3.98L1.72 1zM19.16 17.12l-2.37 3.63 5.07 1.4 1.46-4.93-4.16-.1zM.7 17.22l1.44 4.93 5.07-1.4-2.37-3.63-4.14.1z"
-        fill="#E27625"
-        stroke="#E27625"
-        strokeWidth="0.25"
-      />
-      <path
-        d="M6.92 10.5l-1.42 2.14 5.06.23-.18-5.43-3.46 3.06zM17.08 10.5l-3.51-3.12-.12 5.49 5.05-.23-1.42-2.14zM7.21 20.75l3.04-1.48-2.62-2.05-.42 3.53zM13.75 19.27l3.04 1.48-.42-3.53-2.62 2.05z"
-        fill="#E27625"
-        stroke="#E27625"
-        strokeWidth="0.25"
-      />
-    </svg>
   );
 }
 

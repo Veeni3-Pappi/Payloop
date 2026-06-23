@@ -6,6 +6,7 @@ import { useLoanCount, useLoan, useVoteLoan, useRequestLoan, useRepayLoan } from
 import { formatMatic, loanStatusLabel, loanStatusColor, truncateAddress, formatTimestamp } from "@/lib/utils";
 import LoanRequestForm from "@/components/LoanRequestForm";
 import { toast } from "sonner";
+import { Plus, Inbox, Check, X } from "lucide-react";
 
 export default function LoansPage() {
   const { address } = useAccount();
@@ -20,14 +21,17 @@ export default function LoansPage() {
           <h1 className="text-2xl font-bold">Loans</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Request loans and vote on proposals</p>
         </div>
-        <button onClick={() => setShowRequestForm(true)} className="btn-glow text-sm">
-          + Request Loan
+        <button onClick={() => setShowRequestForm(true)} className="btn-glow text-sm flex items-center gap-2 self-start">
+          <Plus size={16} strokeWidth={2.5} />
+          Request Loan
         </button>
       </div>
 
       {count === 0 ? (
         <div className="glass-card p-12 text-center">
-          <div className="text-5xl mb-4">📋</div>
+          <div className="w-16 h-16 rounded-2xl bg-[var(--accent-purple)]/10 flex items-center justify-center mx-auto mb-4">
+            <Inbox size={32} className="text-[var(--accent-purple)]" strokeWidth={1.8} />
+          </div>
           <h3 className="text-lg font-semibold mb-2">No loan requests yet</h3>
           <p className="text-sm text-[var(--text-muted)]">Be the first to request a loan from the circle pool.</p>
         </div>
@@ -82,12 +86,12 @@ function LoanCard({ loanId, currentWallet }: { loanId: number; currentWallet?: `
       {status === 0 && !isBorrower && (
         <div className="flex gap-3 mt-4">
           <button onClick={() => vote(loanId, true)} disabled={isVoting}
-            className="flex-1 py-2 rounded-lg text-sm font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
-            ✓ Approve
+            className="flex-1 py-2 rounded-lg text-sm font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1.5">
+            <Check size={16} strokeWidth={2.5} /> Approve
           </button>
           <button onClick={() => vote(loanId, false)} disabled={isVoting}
-            className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all">
-            ✕ Reject
+            className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center justify-center gap-1.5">
+            <X size={16} strokeWidth={2.5} /> Reject
           </button>
         </div>
       )}

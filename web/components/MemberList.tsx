@@ -2,6 +2,7 @@
 
 import { useAllMembers } from "@/hooks/useCircleVault";
 import { truncateAddress } from "@/lib/utils";
+import { ExternalLink } from "lucide-react";
 
 export default function MemberList() {
   const { data: members, isLoading } = useAllMembers();
@@ -28,7 +29,7 @@ export default function MemberList() {
                 <span className="text-sm font-mono text-[var(--text-primary)]">{truncateAddress(addr, 6)}</span>
               </div>
               <a href={`https://amoy.polygonscan.com/address/${addr}`} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-[var(--accent-teal)] hover:underline">View →</a>
+                className="text-xs text-[var(--accent-teal)] hover:underline flex items-center gap-1">View <ExternalLink size={12} /></a>
             </div>
           ))}
         </div>

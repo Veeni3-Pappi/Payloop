@@ -9,6 +9,7 @@ import { useContribute } from "@/hooks/useCircleVault";
 import { useAuth } from "@/hooks/useAuth";
 import { initiateStkPush, getCircles } from "@/lib/api";
 import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 
 interface ContributeModalProps {
   isOpen: boolean;

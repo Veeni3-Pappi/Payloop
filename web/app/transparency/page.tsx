@@ -4,6 +4,8 @@ import { useVaultBalance, useMemberCount } from "@/hooks/useCircleVault";
 import { useLoanCount } from "@/hooks/useLendingPool";
 import { formatMatic, truncateAddress } from "@/lib/utils";
 import { CIRCLE_VAULT_ADDRESS } from "@/lib/contracts";
+import { Wallet, Users, Landmark, Globe, ExternalLink } from "lucide-react";
+import { PolygonLogo } from "@/components/icons/BrandIcons";
 
 export default function TransparencyPage() {
   const { data: balance } = useVaultBalance();
@@ -11,10 +13,10 @@ export default function TransparencyPage() {
   const { data: loanCount } = useLoanCount();
 
   const stats = [
-    { label: "Total Vault", value: balance ? `${formatMatic(balance)} MATIC` : "—", icon: "💰" },
-    { label: "Members", value: memberCount !== undefined ? Number(memberCount).toString() : "—", icon: "👥" },
-    { label: "Loans Processed", value: loanCount !== undefined ? Number(loanCount).toString() : "—", icon: "📋" },
-    { label: "Network", value: "Polygon Amoy", icon: "🟣" },
+    { label: "Total Vault", value: balance ? `${formatMatic(balance)} MATIC` : "—", icon: Wallet, accent: "var(--accent-purple)" },
+    { label: "Members", value: memberCount !== undefined ? Number(memberCount).toString() : "—", icon: Users, accent: "var(--accent-teal)" },
+    { label: "Loans Processed", value: loanCount !== undefined ? Number(loanCount).toString() : "—", icon: Landmark, accent: "var(--accent-blue)" },
+    { label: "Network", value: "Polygon Amoy", brand: true },
   ];
 
   return (
@@ -31,8 +33,8 @@ export default function TransparencyPage() {
           </div>
           <span className="text-xl font-bold gradient-text">PayLoop</span>
         </div>
-        <span className="text-xs px-3 py-1.5 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
-          🔓 Public Page
+        <span className="text-xs px-3 py-1.5 rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 flex items-center gap-1.5">
+          <Globe size={13} /> Public Page
         </span>
       </nav>
 
@@ -48,13 +50,25 @@ export default function TransparencyPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          {stats.map((s, i) => (
-            <div key={s.label} className="glass-card p-5 text-center animate-fade-in-up" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className="text-2xl mb-2">{s.icon}</div>
-              <div className="text-xl font-bold">{s.value}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">{s.label}</div>
-            </div>
-          ))}
+          {stats.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} className="glass-card p-5 text-center animate-fade-in-up" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3"
+                  style={{ background: s.brand ? "rgba(130,71,229,0.15)" : `color-mix(in srgb, ${s.accent} 16%, transparent)` }}
+                >
+                  {s.brand ? (
+                    <PolygonLogo size={22} />
+                  ) : (
+                    Icon && <Icon size={22} style={{ color: s.accent }} strokeWidth={2} />
+                  )}
+                </div>
+                <div className="text-xl font-bold">{s.value}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">{s.label}</div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Contract Verification */}
@@ -69,8 +83,8 @@ export default function TransparencyPage() {
             </div>
             {CIRCLE_VAULT_ADDRESS && CIRCLE_VAULT_ADDRESS !== "0x" && (
               <a href={`https://amoy.polygonscan.com/address/${CIRCLE_VAULT_ADDRESS}`}
-                target="_blank" rel="noopener noreferrer" className="btn-outline text-sm">
-                View on PolygonScan →
+                target="_blank" rel="noopener noreferrer" className="btn-outline text-sm flex items-center gap-2">
+                View on PolygonScan <ExternalLink size={14} />
               </a>
             )}
           </div>
