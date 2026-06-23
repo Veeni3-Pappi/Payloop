@@ -3,10 +3,8 @@ Views for the circles app.
 
 Provides:
 - CircleViewSet        — full CRUD for savings circles.
-- add_member           — POST endpoint to invite a user by wallet address.
-- list_members         — GET endpoint listing members of a circle.
-- circle_loans         — GET endpoint listing loans for a specific circle.
-- create_loan          — POST endpoint to create a loan request.
+- circle_members       — GET (list) / POST (add) members of a circle.
+- circle_loans_router  — GET (list) / POST (create) loan requests for a circle.
 - vote_loan            — POST endpoint to vote on a loan request.
 - circle_contributions — GET endpoint listing contributions for a circle.
 - credit_score_view    — public GET endpoint reading on-chain credit score.
@@ -70,199 +68,6 @@ class CircleViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             role="admin",
         )
-
-
-# ------------------------------------------------------------------
-# Add member to circle
-# ------------------------------------------------------------------
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def add_member(request, pk):
-    """
-    Add a member to a circle by wallet address.
-
-    **POST** ``/api/circles/<pk>/members/``
-
-    Request body::
-
-        { "wallet_address": "0x..." }
-
-    If no user exists for the given wallet address one is created
-    automatically (they can complete their profile on first login).
-
-    Returns the created ``Membership`` or a 400 error if the user
-    is already a member.
-    """
-    try:
-        circle = Circle.objects.get(pk=pk)
-    except Circle.DoesNotExist:
-        return Response(
-            {"detail": "Circle not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    wallet_address = request.data.get("wallet_address", "").strip()
-    if not wallet_address:
-        return Response(
-            {"detail": "wallet_address is required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Get or create the user for the provided wallet address.
-    user, _created = User.objects.get_or_create(
-        wallet_address=wallet_address.lower(),
-    )
-
-    # Prevent duplicate memberships.
-    if Membership.objects.filter(circle=circle, user=user).exists():
-        return Response(
-            {"detail": "User is already a member of this circle."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    membership = Membership.objects.create(
-        circle=circle,
-        user=user,
-        role="member",
-    )
-    serializer = MembershipSerializer(membership)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-# ------------------------------------------------------------------
-# List members of a circle
-# ------------------------------------------------------------------
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_members(request, pk):
-    """
-    List all members of a circle.
-
-    **GET** ``/api/circles/<pk>/members/``
-
-    Returns a list of ``Membership`` objects with nested user info.
-    """
-    try:
-        circle = Circle.objects.get(pk=pk)
-    except Circle.DoesNotExist:
-        return Response(
-            {"detail": "Circle not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    memberships = Membership.objects.filter(circle=circle).select_related("user")
-    serializer = MembershipSerializer(memberships, many=True)
-    return Response(serializer.data)
-
-
-# ------------------------------------------------------------------
-# List loans for a circle
-# ------------------------------------------------------------------
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def circle_loans(request, pk):
-    """
-    List all loan requests for a given circle.
-
-    **GET** ``/api/circles/<pk>/loans/``
-
-    Returns a list of ``LoanRequest`` objects ordered by most recent
-    first.
-    """
-    try:
-        circle = Circle.objects.get(pk=pk)
-    except Circle.DoesNotExist:
-        return Response(
-            {"detail": "Circle not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    loans = LoanRequest.objects.filter(circle=circle)
-    serializer = LoanRequestSerializer(loans, many=True)
-    return Response(serializer.data)
-
-
-# ------------------------------------------------------------------
-# Create a loan request
-# ------------------------------------------------------------------
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_loan(request, pk):
-    """
-    Create a loan request for a circle.
-
-    **POST** ``/api/circles/<pk>/loans/``
-
-    Request body::
-
-        {
-            "amount_matic": "0.5",
-            "reason": "Emergency medical expense",
-            "repayment_days": 30
-        }
-
-    The requesting user must be a member of the circle.
-    """
-    try:
-        circle = Circle.objects.get(pk=pk)
-    except Circle.DoesNotExist:
-        return Response(
-            {"detail": "Circle not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    # Verify the user is a member of this circle
-    if not Membership.objects.filter(circle=circle, user=request.user).exists():
-        return Response(
-            {"detail": "You must be a member of this circle to request a loan."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    # Check for existing pending loans
-    if LoanRequest.objects.filter(
-        circle=circle, borrower=request.user, status="pending"
-    ).exists():
-        return Response(
-            {"detail": "You already have a pending loan request in this circle."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    amount = request.data.get("amount_matic")
-    reason = request.data.get("reason", "")
-    repayment_days = request.data.get("repayment_days")
-
-    if not amount or not repayment_days:
-        return Response(
-            {"detail": "amount_matic and repayment_days are required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    loan = LoanRequest.objects.create(
-        circle=circle,
-        borrower=request.user,
-        amount_matic=amount,
-        reason=reason,
-        repayment_days=int(repayment_days),
-        status="pending",
-    )
-
-    # Notify other circle members
-    try:
-        from notifications.services import notify_loan_request
-        members = User.objects.filter(
-            memberships__circle=circle
-        ).exclude(id=request.user.id)
-        borrower_name = request.user.display_name or str(request.user)
-        notify_loan_request(members, borrower_name, str(amount), circle.name)
-    except Exception:
-        pass  # Don't fail the request if notifications fail
-
-    serializer = LoanRequestSerializer(loan)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 # ------------------------------------------------------------------
@@ -506,7 +311,7 @@ def credit_score_view(request, wallet):
 @permission_classes([IsAuthenticated])
 def circle_members(request, pk):
     """
-    Dispatch to list_members (GET) or add_member (POST).
+    List members (GET) or add a member (POST).
 
     **GET**  ``/api/circles/<pk>/members/`` — list members
     **POST** ``/api/circles/<pk>/members/`` — add a member
@@ -555,7 +360,7 @@ def circle_members(request, pk):
 @permission_classes([IsAuthenticated])
 def circle_loans_router(request, pk):
     """
-    Dispatch to circle_loans (GET) or create_loan (POST).
+    List loans (GET) or create a loan request (POST).
 
     **GET**  ``/api/circles/<pk>/loans/`` — list loans
     **POST** ``/api/circles/<pk>/loans/`` — create a loan request

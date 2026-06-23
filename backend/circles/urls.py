@@ -4,8 +4,8 @@ URL configuration for the circles app.
 Registers:
 - /api/circles/                         — CircleViewSet (list / create)
 - /api/circles/<pk>/                    — CircleViewSet (retrieve / update / delete)
-- /api/circles/<pk>/members/            — list_members (GET) / add_member (POST)
-- /api/circles/<pk>/loans/              — circle_loans (GET) / create_loan (POST)
+- /api/circles/<pk>/members/            — circle_members (GET list / POST add)
+- /api/circles/<pk>/loans/              — circle_loans_router (GET list / POST create)
 - /api/circles/<pk>/loans/<loan>/vote/  — vote_loan (POST)
 - /api/circles/<pk>/contributions/      — circle_contributions (GET)
 
