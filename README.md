@@ -12,8 +12,8 @@ PayLoop is a decentralized group savings and micro-lending platform that digitis
 
 ```
 ┌─────────────────────────────────────────┐
-│         Next.js 14 Web Dashboard        │
-│    (Tailwind CSS + wagmi v2 + viem)     │
+│         Next.js 16 Web Dashboard        │
+│    (Tailwind CSS + wagmi v3 + viem)     │
 └──────────────────┬──────────────────────┘
                    │
                    ▼
@@ -53,7 +53,7 @@ PayLoop is a decentralized group savings and micro-lending platform that digitis
 | Smart contracts (4 contracts deployed to Amoy) | ✅ |
 | Django backend API | ✅ |
 | M-Pesa Daraja integration | ✅ |
-| Firebase FCM notifications | 🔜 |
+| Firebase FCM notifications | ✅ |
 
 ---
 
