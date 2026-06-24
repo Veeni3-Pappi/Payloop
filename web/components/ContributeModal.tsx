@@ -275,9 +275,9 @@ export default function ContributeModal({
               href={`https://amoy.polygonscan.com/tx/${hash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-center text-xs text-[var(--accent-teal)] hover:underline"
+              className="flex items-center justify-center gap-1 text-xs text-[var(--accent-teal)] hover:underline"
             >
-              View on PolygonScan →
+              View on PolygonScan <ExternalLink size={12} />
             </a>
           )}
         </form>
