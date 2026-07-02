@@ -4,8 +4,6 @@
 
 PayLoop is a decentralized group savings and micro-lending platform that digitises African informal savings circles (chamas) using blockchain technology. Built for the **Eldohub Web3 Hackathon 2026**.
 
-![PayLoop Landing Page](./screenshots/landing.png)
-
 ---
 
 ## 🏗️ Architecture
@@ -70,6 +68,7 @@ cd contracts
 cp .env.example .env  # add your private key
 npm install
 npx hardhat compile
+npm test   # run the Solidity test suite (61 tests)
 npx hardhat run scripts/deploy.js --network amoy
 ```
 
