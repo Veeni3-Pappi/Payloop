@@ -22,7 +22,7 @@ export default function MemberList() {
         <div className="space-y-2">
           {memberList.map((addr, i) => (
             <div key={addr} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)]">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-teal-400 flex items-center justify-center text-xs font-bold text-white">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-300 flex items-center justify-center text-xs font-bold text-white">
                 {i + 1}
               </div>
               <div className="flex-1">

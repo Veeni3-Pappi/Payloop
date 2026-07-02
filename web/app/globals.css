@@ -2,25 +2,40 @@
 
 /* ═══════════════════════════════════════════════════════════
    PayLoop — Global Design System
-   Dark fintech theme with purple/teal accent palette
+   "Obsidian Flux (Emerald)" — Institutional DeFi aesthetic
+   Deep obsidian surfaces + emerald accents, glassmorphism,
+   Sora (display) / Geist (body) typography.
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Custom Properties ─────────────────────────────────────── */
 :root {
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: #1a1f35;
-  --bg-card-hover: #222845;
-  --border-subtle: rgba(139, 92, 246, 0.15);
-  --border-glow: rgba(139, 92, 246, 0.4);
-  --accent-purple: #8b5cf6;
-  --accent-teal: #14b8a6;
-  --accent-blue: #3b82f6;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --glass-bg: rgba(26, 31, 53, 0.7);
-  --glass-border: rgba(139, 92, 246, 0.12);
+  /* Obsidian surfaces */
+  --bg-primary: #131313;
+  --bg-secondary: #191919;
+  --bg-card: #1c1c1e;
+  --bg-card-hover: #242426;
+
+  /* Emerald accent system (legacy names kept so existing
+     class/var references restyle automatically) */
+  --accent-purple: #10b981; /* primary emerald */
+  --accent-teal: #34d399; /* mint / light emerald */
+  --accent-blue: #059669; /* deep emerald */
+
+  /* Emerald-tinted borders + glass */
+  --border-subtle: rgba(16, 185, 129, 0.15);
+  --border-glow: rgba(16, 185, 129, 0.4);
+  --glass-bg: rgba(24, 24, 26, 0.6);
+  --glass-border: rgba(16, 185, 129, 0.12);
+
+  /* Text */
+  --text-primary: #f4f5f4;
+  --text-secondary: #9aa39d;
+  --text-muted: #6b726d;
+
+  /* Typography */
+  --font-display: "Sora", "Inter", system-ui, sans-serif;
+  --font-body: "Geist", "Inter", "Segoe UI", -apple-system, system-ui,
+    sans-serif;
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
@@ -31,9 +46,20 @@ html {
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: "Inter", "Segoe UI", -apple-system, system-ui, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display type for headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* ── Glass Card ────────────────────────────────────────────── */
@@ -48,7 +74,7 @@ body {
 
 .glass-card:hover {
   border-color: var(--border-glow);
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.08);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.08);
 }
 
 /* ── Gradient Text ─────────────────────────────────────────── */
@@ -87,7 +113,7 @@ body {
 
 .btn-glow:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.35);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.35);
 }
 
 .btn-glow:hover::before {
@@ -114,7 +140,7 @@ body {
 }
 
 .btn-outline:hover {
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   border-color: var(--accent-purple);
   transform: translateY(-1px);
 }
@@ -133,12 +159,12 @@ body {
 }
 
 .sidebar-link:hover {
-  background: rgba(139, 92, 246, 0.08);
+  background: rgba(16, 185, 129, 0.08);
   color: var(--text-primary);
 }
 
 .sidebar-link.active {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(16, 185, 129, 0.15);
   color: var(--accent-purple);
   font-weight: 600;
 }
@@ -162,18 +188,18 @@ body {
 
 .input-field:focus {
   border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 /* ── Stat Card Glow ────────────────────────────────────────── */
 .stat-glow-purple {
-  box-shadow: inset 0 1px 0 rgba(139, 92, 246, 0.2),
-    0 0 40px rgba(139, 92, 246, 0.04);
+  box-shadow: inset 0 1px 0 rgba(16, 185, 129, 0.2),
+    0 0 40px rgba(16, 185, 129, 0.04);
 }
 
 .stat-glow-teal {
-  box-shadow: inset 0 1px 0 rgba(20, 184, 166, 0.2),
-    0 0 40px rgba(20, 184, 166, 0.04);
+  box-shadow: inset 0 1px 0 rgba(52, 211, 153, 0.2),
+    0 0 40px rgba(52, 211, 153, 0.04);
 }
 
 .stat-glow-blue {
@@ -253,7 +279,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(139, 92, 246, 0.1),
+    rgba(16, 185, 129, 0.1),
     transparent
   );
   background-size: 200% 100%;
@@ -317,10 +343,10 @@ body {
 .bg-mesh {
   background-image: radial-gradient(
       at 20% 20%,
-      rgba(139, 92, 246, 0.08) 0,
+      rgba(16, 185, 129, 0.08) 0,
       transparent 50%
     ),
-    radial-gradient(at 80% 80%, rgba(20, 184, 166, 0.06) 0, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(52, 211, 153, 0.06) 0, transparent 50%),
     radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.04) 0, transparent 50%);
 }
 
@@ -356,7 +382,7 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(10, 14, 26, 0.95);
+  background: rgba(19, 19, 19, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--glass-border);
@@ -401,7 +427,7 @@ body {
 }
 
 .mobile-nav-item.active .nav-icon {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(16, 185, 129, 0.15);
 }
 
 .nav-icon {
@@ -436,7 +462,7 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95));
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
   backdrop-filter: blur(16px);
   padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 200;

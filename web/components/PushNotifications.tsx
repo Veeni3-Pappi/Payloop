@@ -33,7 +33,7 @@ export default function PushNotifications() {
     <button
       onClick={enablePush}
       disabled={isRegistering}
-      className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full border border-violet-500/30 bg-[#1a1f35] px-4 py-2 text-sm font-medium text-slate-100 shadow-lg transition hover:border-violet-500/60 disabled:opacity-60"
+      className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full border border-emerald-500/30 bg-[#1c1c1e] px-4 py-2 text-sm font-medium text-slate-100 shadow-lg transition hover:border-emerald-500/60 disabled:opacity-60"
     >
       <Bell size={16} strokeWidth={2} />
       {isRegistering ? "Enabling…" : "Enable notifications"}

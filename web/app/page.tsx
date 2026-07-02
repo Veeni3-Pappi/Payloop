@@ -37,8 +37,8 @@ export default function LandingPage() {
         <div className="max-w-3xl text-center animate-fade-in-up">
           {/* Floating orbs */}
           <div className="relative mb-8">
-            <div className="absolute -top-20 -left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse-slow" />
-            <div className="absolute -top-10 -right-20 w-60 h-60 bg-teal-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: "1s" }} />
+            <div className="absolute -top-20 -left-20 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow" />
+            <div className="absolute -top-10 -right-20 w-60 h-60 bg-emerald-400/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: "1s" }} />
           </div>
 
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--border-subtle)] text-xs font-medium text-[var(--accent-purple)] mb-6 animate-fade-in-up-delay-1">

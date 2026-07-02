@@ -70,7 +70,7 @@ export default function MembersPage() {
         ) : (
           memberList.map((addr, i) => (
             <div key={addr} className="glass-card p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-teal-400 flex items-center justify-center text-sm font-bold text-white">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-300 flex items-center justify-center text-sm font-bold text-white">
                 {i + 1}
               </div>
               <div className="flex-1">

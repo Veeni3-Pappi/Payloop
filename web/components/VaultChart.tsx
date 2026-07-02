@@ -30,17 +30,17 @@ export default function VaultChart() {
           <AreaChart data={demoData}>
             <defs>
               <linearGradient id="vaultGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ background: "#1a1f35", border: "1px solid rgba(139,92,246,0.2)", borderRadius: "8px", color: "#f1f5f9" }}
-              labelStyle={{ color: "#94a3b8" }}
+              contentStyle={{ background: "#1c1c1e", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", color: "#f4f5f4" }}
+              labelStyle={{ color: "#9aa39d" }}
             />
-            <Area type="monotone" dataKey="balance" stroke="#8b5cf6" fill="url(#vaultGradient)" strokeWidth={2} />
+            <Area type="monotone" dataKey="balance" stroke="#10b981" fill="url(#vaultGradient)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
