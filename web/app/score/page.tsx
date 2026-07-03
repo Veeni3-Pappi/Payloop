@@ -61,7 +61,7 @@ export default function ScorePage() {
                 <span className="text-[var(--text-secondary)]">Missed contribution</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <span className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold">+15</span>
+                <span className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-400 font-bold">+15</span>
                 <span className="text-[var(--text-secondary)]">Loan fully repaid</span>
               </div>
             </div>

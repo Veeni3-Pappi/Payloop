@@ -50,7 +50,7 @@ export default function CreditScoreCard({ walletAddress }: Props) {
           <div className="w-full space-y-3">
             <div className="flex justify-between"><span className="text-sm text-[var(--text-secondary)]">On-time</span><span className="text-sm font-semibold text-emerald-400">{Number(scoreData.onTimeCount)} × (+10)</span></div>
             <div className="flex justify-between"><span className="text-sm text-[var(--text-secondary)]">Missed</span><span className="text-sm font-semibold text-red-400">{Number(scoreData.missedCount)} × (-20)</span></div>
-            <div className="flex justify-between"><span className="text-sm text-[var(--text-secondary)]">Repaid</span><span className="text-sm font-semibold text-blue-400">{Number(scoreData.repaidCount)} × (+15)</span></div>
+            <div className="flex justify-between"><span className="text-sm text-[var(--text-secondary)]">Repaid</span><span className="text-sm font-semibold text-teal-400">{Number(scoreData.repaidCount)} × (+15)</span></div>
           </div>
         )}
       </div>

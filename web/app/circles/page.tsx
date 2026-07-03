@@ -50,7 +50,7 @@ export default function CirclesPage() {
         </div>
         <div className="glass-card p-6 stat-glow-blue">
           <div className="text-sm text-[var(--text-secondary)] mb-2">Loan Requests</div>
-          <div className="text-3xl font-bold text-blue-400">{loanCount !== undefined ? Number(loanCount) : 0}</div>
+          <div className="text-3xl font-bold text-emerald-400">{loanCount !== undefined ? Number(loanCount) : 0}</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">Total submitted</div>
         </div>
       </div>
