@@ -22,19 +22,29 @@ import androidx.compose.ui.tooling.preview.Preview
 // THEME / DESIGN TOKENS
 // ─────────────────────────────────────────────
 
+// "Obsidian Flux (Emerald)" — mapped onto the original token names so the
+// screens below restyle in place. Sourced from the shared PayLoopColors
+// (ui/theme/Color.kt), which also drives the Material scheme.
 object PayLoopTheme {
-    val Green900  = Color(0xFF0A3D1F)   // deep forest — primary brand
-    val Green600  = Color(0xFF1A7A3C)   // mid green — buttons
-    val Green400  = Color(0xFF2ECC71)   // accent / highlight
-    val Gold      = Color(0xFFF5C842)   // loyalty / score accent
-    val Surface   = Color(0xFFF7F9F5)   // off-white tinted green
-    val Card      = Color(0xFFFFFFFF)
-    val TextPrim  = Color(0xFF0A1F12)
-    val TextSec   = Color(0xFF5A7060)
-    val Divider   = Color(0xFFDDE8DF)
+    val Green900  = com.payloop.app.ui.theme.PayLoopColors.EmeraldDeep // deep emerald
+    val Green600  = com.payloop.app.ui.theme.PayLoopColors.Emerald     // primary emerald — buttons
+    val Green400  = com.payloop.app.ui.theme.PayLoopColors.Mint        // mint accent / highlight
+    val Gold      = com.payloop.app.ui.theme.PayLoopColors.Amber       // score / warning accent
+    val Surface   = com.payloop.app.ui.theme.PayLoopColors.BgPrimary   // obsidian background
+    val Card      = com.payloop.app.ui.theme.PayLoopColors.BgCard      // obsidian card
+    val TextPrim  = com.payloop.app.ui.theme.PayLoopColors.TextPrimary
+    val TextSec   = com.payloop.app.ui.theme.PayLoopColors.TextSecondary
+    val Divider   = com.payloop.app.ui.theme.PayLoopColors.GlassBorder
 
     val GradientBg = Brush.verticalGradient(
-        colors = listOf(Green900, Color(0xFF0F5C2A))
+        colors = listOf(Color(0xFF131313), Color(0xFF191919))
+    )
+    // Emerald brand gradient for hero balances / logo accents.
+    val Accent = Brush.linearGradient(
+        colors = listOf(
+            com.payloop.app.ui.theme.PayLoopColors.Emerald,
+            com.payloop.app.ui.theme.PayLoopColors.Mint,
+        )
     )
 }
 
@@ -68,18 +78,33 @@ object MockData {
 // ─────────────────────────────────────────────
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
-    var phone by remember { mutableStateOf("") }
-    var pin   by remember { mutableStateOf("") }
-    var pinVisible by remember { mutableStateOf(false) }
-    var isLoading  by remember { mutableStateOf(false) }
-    var errorMsg   by remember { mutableStateOf("") }
+fun LoginScreen(
+    onLoginSuccess: () -> Unit,
+    viewModel: LoginViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val connecting = state is LoginUiState.Connecting
+
+    // Navigate onward once the wallet is verified + JWT stored.
+    LaunchedEffect(state) {
+        if (state is LoginUiState.Success) onLoginSuccess()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PayLoopTheme.GradientBg)
     ) {
+        // Subtle emerald glow orb (echoes the web hero mesh).
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = 40.dp)
+                .size(280.dp)
+                .clip(CircleShape)
+                .background(PayLoopTheme.Green600.copy(alpha = 0.10f))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -87,20 +112,20 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(72.dp))
+            Spacer(Modifier.height(88.dp))
 
             // Logo mark
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
-                    .background(PayLoopTheme.Green400.copy(alpha = 0.15f))
+                    .background(PayLoopTheme.Green600.copy(alpha = 0.15f))
                     .border(2.dp, PayLoopTheme.Green400, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     "₱",
-                    fontSize = 36.sp,
+                    fontSize = 38.sp,
                     color = PayLoopTheme.Green400,
                     fontWeight = FontWeight.Bold
                 )
@@ -110,156 +135,90 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
             Text(
                 "PayLoop",
-                fontSize = 32.sp,
+                fontSize = 34.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
+                color = PayLoopTheme.TextPrim,
                 letterSpacing = (-0.5).sp
             )
             Text(
-                "Save together. Grow together.",
+                "Decentralized circle savings & credit.",
                 fontSize = 14.sp,
-                color = PayLoopTheme.Green400.copy(alpha = 0.85f),
+                color = PayLoopTheme.TextSec,
                 letterSpacing = 0.3.sp
             )
 
             Spacer(Modifier.height(48.dp))
 
-            // Card
+            // Glass card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Card),
-                elevation = CardDefaults.cardElevation(8.dp)
+                border = BorderStroke(1.dp, PayLoopTheme.Divider),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Column(Modifier.padding(24.dp)) {
+                Column(
+                    Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        "Sign in",
+                        "Connect your wallet",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = PayLoopTheme.TextPrim
                     )
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        "Enter your phone number and PIN",
+                        "Sign a message to verify wallet ownership. No password needed.",
                         fontSize = 13.sp,
-                        color = PayLoopTheme.TextSec
+                        color = PayLoopTheme.TextSec,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
                     )
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Phone field
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = {
-                            if (it.length <= 10) phone = it
-                            errorMsg = ""
-                        },
-                        label = { Text("Phone number") },
-                        placeholder = { Text("07XX XXX XXX") },
-                        leadingIcon = {
-                            Text(
-                                "🇰🇪",
-                                modifier = Modifier.padding(start = 12.dp),
-                                fontSize = 18.sp
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PayLoopTheme.Green600,
-                            focusedLabelColor  = PayLoopTheme.Green600
-                        )
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // PIN field
-                    OutlinedTextField(
-                        value = pin,
-                        onValueChange = {
-                            if (it.length <= 4) pin = it
-                            errorMsg = ""
-                        },
-                        label = { Text("PIN") },
-                        placeholder = { Text("4-digit PIN") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = PayLoopTheme.TextSec
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { pinVisible = !pinVisible }) {
-                                Icon(
-                                    if (pinVisible) Icons.Default.VisibilityOff
-                                    else Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    tint = PayLoopTheme.TextSec
-                                )
-                            }
-                        },
-                        visualTransformation = if (pinVisible) VisualTransformation.None
-                        else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PayLoopTheme.Green600,
-                            focusedLabelColor  = PayLoopTheme.Green600
-                        )
-                    )
-
-                    // Error message
-                    AnimatedVisibility(visible = errorMsg.isNotEmpty()) {
-                        Text(
-                            errorMsg,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 6.dp)
-                        )
-                    }
-
-                    Spacer(Modifier.height(24.dp))
-
-                    // Login button
+                    // Connect button (emerald glow)
                     Button(
-                        onClick = {
-                            when {
-                                phone.length < 10 -> errorMsg = "Enter a valid phone number"
-                                pin.length < 4    -> errorMsg = "PIN must be 4 digits"
-                                else -> {
-                                    isLoading = true
-                                    // TODO: Replace with Firebase Auth call
-                                    // FirebaseAuth.getInstance().signInWith...
-                                    onLoginSuccess()
-                                }
-                            }
-                        },
+                        onClick = { viewModel.connectAndLogin() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .height(54.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PayLoopTheme.Green600
+                            containerColor = PayLoopTheme.Green600,
+                            contentColor = Color(0xFF06231A)
                         ),
-                        enabled = !isLoading
+                        enabled = !connecting
                     ) {
-                        if (isLoading) {
+                        if (connecting) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color.White,
+                                color = Color(0xFF06231A),
                                 strokeWidth = 2.dp
                             )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Connecting…", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         } else {
-                            Text(
-                                "Sign in",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
+                            Icon(
+                                Icons.Default.AccountBalanceWallet,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Connect Wallet", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         }
+                    }
+
+                    // Error message
+                    AnimatedVisibility(visible = state is LoginUiState.Error) {
+                        Text(
+                            (state as? LoginUiState.Error)?.message.orEmpty(),
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
                     }
                 }
             }
@@ -267,9 +226,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             Spacer(Modifier.height(24.dp))
 
             Text(
-                "Contact your group admin if you need access",
+                "By connecting you agree to PayLoop's circle terms.",
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.5f),
+                color = PayLoopTheme.TextSec.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
 
@@ -355,7 +314,7 @@ fun HomeScreen(
                     "KES ${"%,.0f".format(MockData.savingsKES)}",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = PayLoopTheme.Green900,
+                    color = PayLoopTheme.Green400,
                     letterSpacing = (-1).sp
                 )
                 Spacer(Modifier.height(12.dp))
@@ -398,7 +357,7 @@ fun HomeScreen(
             )
             ActionCard(
                 icon = Icons.Default.AccountBalance,
-                iconColor = Color(0xFF1565C0),
+                iconColor = PayLoopTheme.Green400,
                 title = "Request a loan",
                 subtitle = "Borrow from the group pool",
                 onClick = onLoanClick
@@ -423,7 +382,7 @@ private fun StatChip(label: String, value: String, isGold: Boolean = false) {
             value,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isGold) PayLoopTheme.Gold else PayLoopTheme.Green900
+            color = if (isGold) PayLoopTheme.Gold else PayLoopTheme.Green400
         )
         Text(
             label,

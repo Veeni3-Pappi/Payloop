@@ -365,13 +365,13 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
             modifier = Modifier
                 .size(96.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1565C0).copy(alpha = 0.1f)),
+                .background(PayLoopTheme.Gold.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.HourglassTop,
                 contentDescription = null,
-                tint = Color(0xFF1565C0),
+                tint = PayLoopTheme.Gold,
                 modifier = Modifier.size(52.dp)
             )
         }
@@ -401,7 +401,7 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFFFFF3E0))
+                .background(PayLoopTheme.Gold.copy(alpha = 0.12f))
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -409,13 +409,13 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF57C00))
+                    .background(PayLoopTheme.Gold)
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 "Pending approval",
                 fontSize = 13.sp,
-                color = Color(0xFFF57C00),
+                color = PayLoopTheme.Gold,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -569,7 +569,7 @@ fun ScoreScreen(onBack: () -> Unit) {
 
             ScoreBreakdownCard(
                 icon = Icons.Default.CheckCircle,
-                iconColor = Color(0xFF1565C0),
+                iconColor = PayLoopTheme.Green400,
                 label = "Loans repaid on time",
                 value = "${MockData.loansRepaid}",
                 points = "+30 pts",
@@ -580,7 +580,7 @@ fun ScoreScreen(onBack: () -> Unit) {
 
             ScoreBreakdownCard(
                 icon = Icons.Default.Schedule,
-                iconColor = Color(0xFFF57C00),
+                iconColor = PayLoopTheme.Gold,
                 label = "Consistency streak",
                 value = "3 months",
                 points = "+9 pts",
@@ -618,7 +618,7 @@ fun ScoreScreen(onBack: () -> Unit) {
                             "KES ${"%,d".format(score * 100)}",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = PayLoopTheme.Green900
+                            color = PayLoopTheme.Green400
                         )
                         Text(
                             "Increase your score to unlock more",
