@@ -31,4 +31,6 @@ object ServiceLocator {
     }
 
     val authRepository: AuthRepository by lazy { AuthRepository(api, tokenStore, wallet) }
+
+    val repository: AppRepository by lazy { AppRepository(api, tokenStore) }
 }

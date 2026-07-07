@@ -16,7 +16,9 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.*
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.payloop.app.data.DashboardData
+import java.math.BigDecimal
 
 // ─────────────────────────────────────────────
 // THEME / DESIGN TOKENS
@@ -61,26 +63,13 @@ object Routes {
 }
 
 // ─────────────────────────────────────────────
-// MOCK DATA (swap with Retrofit calls later)
-// ─────────────────────────────────────────────
-
-object MockData {
-    val memberName    = "Wesley Mercs"
-    val groupName     = "Eldohub Chama"
-    val savingsKES    = 12_450.00
-    val scorePoints   = 84
-    val contributions = 9
-    val loansRepaid   = 2
-}
-
-// ─────────────────────────────────────────────
 // 1. LOGIN SCREEN
 // ─────────────────────────────────────────────
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    viewModel: LoginViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: LoginViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val connecting = state is LoginUiState.Connecting
@@ -245,7 +234,29 @@ fun LoginScreen(
 fun HomeScreen(
     onContributeClick: () -> Unit,
     onLoanClick: () -> Unit,
-    onScoreClick: () -> Unit
+    onScoreClick: () -> Unit,
+    viewModel: HomeViewModel = viewModel()
+) {
+    val state by viewModel.state.collectAsState()
+
+    when (val s = state) {
+        is HomeUiState.Loading -> FullScreenLoader()
+        is HomeUiState.Error -> ErrorState(message = s.message, onRetry = { viewModel.load() })
+        is HomeUiState.Ready -> HomeContent(
+            data = s.data,
+            onContributeClick = onContributeClick,
+            onLoanClick = onLoanClick,
+            onScoreClick = onScoreClick,
+        )
+    }
+}
+
+@Composable
+private fun HomeContent(
+    data: DashboardData,
+    onContributeClick: () -> Unit,
+    onLoanClick: () -> Unit,
+    onScoreClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -262,12 +273,12 @@ fun HomeScreen(
         ) {
             Column {
                 Text(
-                    "Good morning 👋",
+                    "Welcome back 👋",
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
                 Text(
-                    MockData.memberName,
+                    data.memberName,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -282,7 +293,7 @@ fun HomeScreen(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        MockData.groupName,
+                        data.groupName ?: "No circle yet",
                         fontSize = 13.sp,
                         color = PayLoopTheme.Green400
                     )
@@ -305,13 +316,13 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Your savings balance",
+                    if (data.hasCircle) "Group savings pool" else "Your savings balance",
                     fontSize = 13.sp,
                     color = PayLoopTheme.TextSec
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "KES ${"%,.0f".format(MockData.savingsKES)}",
+                    "KES ${formatKes(data.savingsPoolKes)}",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = PayLoopTheme.Green400,
@@ -324,14 +335,24 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StatChip(label = "Contributions", value = "${MockData.contributions}")
-                    StatChip(label = "Loans repaid", value = "${MockData.loansRepaid}")
-                    StatChip(label = "Score", value = "${MockData.scorePoints}", isGold = true)
+                    StatChip(label = "Contributions", value = "${data.contributionsCount}")
+                    StatChip(label = "Loans repaid", value = "${data.loansRepaid}")
+                    StatChip(label = "Score", value = "${data.score}", isGold = true)
                 }
             }
         }
 
         Spacer(Modifier.height(4.dp))
+
+        if (!data.hasCircle) {
+            Text(
+                "You're not in a savings circle yet. Ask your group admin to add your wallet, then contributions and loans will unlock here.",
+                fontSize = 13.sp,
+                color = PayLoopTheme.TextSec,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+        }
 
         // Actions
         Text(
@@ -353,6 +374,7 @@ fun HomeScreen(
                 iconColor = PayLoopTheme.Green600,
                 title = "Contribute",
                 subtitle = "Add money to your group savings",
+                enabled = data.hasCircle,
                 onClick = onContributeClick
             )
             ActionCard(
@@ -360,6 +382,7 @@ fun HomeScreen(
                 iconColor = PayLoopTheme.Green400,
                 title = "Request a loan",
                 subtitle = "Borrow from the group pool",
+                enabled = data.hasCircle,
                 onClick = onLoanClick
             )
             ActionCard(
@@ -367,6 +390,7 @@ fun HomeScreen(
                 iconColor = PayLoopTheme.Gold,
                 title = "My score",
                 subtitle = "View your loyalty and credit score",
+                enabled = true,
                 onClick = onScoreClick
             )
         }
@@ -398,12 +422,14 @@ private fun ActionCard(
     iconColor: Color,
     title: String,
     subtitle: String,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .alpha(if (enabled) 1f else 0.45f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Card),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -440,45 +466,64 @@ private fun ActionCard(
 // ─────────────────────────────────────────────
 
 @Composable
-fun ContributeScreen(onBack: () -> Unit) {
-    var amount      by remember { mutableStateOf("") }
-    var isLoading   by remember { mutableStateOf(false) }
-    var isSuccess   by remember { mutableStateOf(false) }
-    var errorMsg    by remember { mutableStateOf("") }
+fun ContributeScreen(
+    onBack: () -> Unit,
+    viewModel: ContributeViewModel = viewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val result by viewModel.result.collectAsState()
 
-    val quickAmounts = listOf(100, 250, 500, 1000)
-
-    if (isSuccess) {
-        ContributeSuccessScreen(amount = amount, onDone = onBack)
+    // Success takes over the whole screen once the STK push is accepted.
+    result?.let { r ->
+        ContributeSuccessScreen(message = r.message ?: "Check your phone to complete M-Pesa payment.", onDone = onBack)
         return
     }
+
+    when (val s = state) {
+        is ContributeUiState.Loading -> {
+            Column(Modifier.fillMaxSize().background(PayLoopTheme.Surface)) {
+                ScreenTopBar("Contribute", onBack)
+                FullScreenLoader()
+            }
+        }
+        is ContributeUiState.Error -> {
+            Column(Modifier.fillMaxSize().background(PayLoopTheme.Surface)) {
+                ScreenTopBar("Contribute", onBack)
+                ErrorState(message = s.message, onRetry = { viewModel.load() })
+            }
+        }
+        is ContributeUiState.Ready -> ContributeForm(
+            groupName = s.context.groupName,
+            initialPhone = s.context.phoneNumber,
+            viewModel = viewModel,
+            onBack = onBack,
+        )
+    }
+}
+
+@Composable
+private fun ContributeForm(
+    groupName: String?,
+    initialPhone: String,
+    viewModel: ContributeViewModel,
+    onBack: () -> Unit,
+) {
+    var amount by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf(initialPhone) }
+    var localError by remember { mutableStateOf("") }
+
+    val submitting by viewModel.submitting.collectAsState()
+    val submitError by viewModel.submitError.collectAsState()
+
+    val quickAmounts = listOf(100, 250, 500, 1000)
+    val errorMsg = localError.ifEmpty { submitError ?: "" }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PayLoopTheme.Surface)
     ) {
-        // Top bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(PayLoopTheme.GradientBg)
-                .padding(horizontal = 20.dp, vertical = 20.dp)
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
-            Text(
-                "Contribute",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        ScreenTopBar("Contribute", onBack)
 
         Column(
             modifier = Modifier
@@ -502,7 +547,7 @@ fun ContributeScreen(onBack: () -> Unit) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Contributing to ${MockData.groupName}",
+                    "Contributing to ${groupName ?: "your circle"}",
                     fontSize = 13.sp,
                     color = PayLoopTheme.Green600,
                     fontWeight = FontWeight.Medium
@@ -511,23 +556,13 @@ fun ContributeScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(28.dp))
 
-            Text(
-                "Enter amount",
-                fontSize = 14.sp,
-                color = PayLoopTheme.TextSec,
-                fontWeight = FontWeight.Medium
-            )
-
+            Text("Enter amount", fontSize = 14.sp, color = PayLoopTheme.TextSec, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
 
-            // Amount input
             OutlinedTextField(
                 value = amount,
                 onValueChange = {
-                    if (it.all { c -> c.isDigit() }) {
-                        amount = it
-                        errorMsg = ""
-                    }
+                    if (it.all { c -> c.isDigit() }) { amount = it; localError = ""; viewModel.clearError() }
                 },
                 prefix = { Text("KES  ", fontWeight = FontWeight.Bold, color = PayLoopTheme.TextPrim) },
                 placeholder = { Text("0") },
@@ -556,10 +591,7 @@ fun ContributeScreen(onBack: () -> Unit) {
                     val selected = amount == preset.toString()
                     FilterChip(
                         selected = selected,
-                        onClick = {
-                            amount = preset.toString()
-                            errorMsg = ""
-                        },
+                        onClick = { amount = preset.toString(); localError = ""; viewModel.clearError() },
                         label = { Text("$preset") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PayLoopTheme.Green600,
@@ -568,6 +600,29 @@ fun ContributeScreen(onBack: () -> Unit) {
                     )
                 }
             }
+
+            Spacer(Modifier.height(20.dp))
+
+            // M-Pesa phone number (prefilled from profile, editable)
+            Text("M-Pesa phone number", fontSize = 14.sp, color = PayLoopTheme.TextSec, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = phone,
+                onValueChange = {
+                    if (it.all { c -> c.isDigit() } && it.length <= 12) { phone = it; localError = ""; viewModel.clearError() }
+                },
+                placeholder = { Text("2547XXXXXXXX") },
+                leadingIcon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = PayLoopTheme.TextSec) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                singleLine = true,
+                supportingText = { Text("Kenyan format, starts with 254", fontSize = 11.sp, color = PayLoopTheme.TextSec) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PayLoopTheme.Green600,
+                    unfocusedBorderColor = PayLoopTheme.Divider
+                )
+            )
 
             AnimatedVisibility(visible = errorMsg.isNotEmpty()) {
                 Text(
@@ -578,20 +633,18 @@ fun ContributeScreen(onBack: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Summary box
             if (amount.isNotEmpty() && amount.toIntOrNull() != null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = PayLoopTheme.Green600.copy(alpha = 0.07f)
-                    )
+                    colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Green600.copy(alpha = 0.07f))
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         SummaryRow("You're sending", "KES $amount")
-                        SummaryRow("To", MockData.groupName)
+                        SummaryRow("To", groupName ?: "your circle")
                         SummaryRow("Via", "M-Pesa STK Push")
                     }
                 }
@@ -601,32 +654,22 @@ fun ContributeScreen(onBack: () -> Unit) {
             // Confirm button
             Button(
                 onClick = {
+                    val amt = amount.toIntOrNull() ?: 0
                     when {
-                        amount.isEmpty() -> errorMsg = "Enter an amount"
-                        (amount.toIntOrNull() ?: 0) < 10 -> errorMsg = "Minimum contribution is KES 10"
-                        else -> {
-                            isLoading = true
-                            // TODO: Replace with API call to Team C
-                            // POST /api/contribute { amount, phone }
-                            // M-Pesa STK push will be triggered server-side
-                            isSuccess = true
-                            isLoading = false
-                        }
+                        amount.isEmpty() -> localError = "Enter an amount"
+                        amt < 10 -> localError = "Minimum contribution is KES 10"
+                        phone.length != 12 || !phone.startsWith("254") ->
+                            localError = "Enter a valid M-Pesa number (254…)"
+                        else -> viewModel.contribute(amount, phone)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PayLoopTheme.Green600),
-                enabled = !isLoading
+                enabled = !submitting
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
+                if (submitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
                     Icon(Icons.Default.PhoneAndroid, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -665,7 +708,7 @@ private fun SummaryRow(label: String, value: String) {
 // ─────────────────────────────────────────────
 
 @Composable
-private fun ContributeSuccessScreen(amount: String, onDone: () -> Unit) {
+private fun ContributeSuccessScreen(message: String, onDone: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -691,15 +734,10 @@ private fun ContributeSuccessScreen(amount: String, onDone: () -> Unit) {
 
         Spacer(Modifier.height(24.dp))
 
-        Text(
-            "Contribution sent!",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = PayLoopTheme.TextPrim
-        )
+        Text("Payment started!", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = PayLoopTheme.TextPrim)
         Spacer(Modifier.height(8.dp))
         Text(
-            "KES $amount is on its way to ${MockData.groupName}.\nCheck your phone to complete M-Pesa payment.",
+            message,
             fontSize = 14.sp,
             color = PayLoopTheme.TextSec,
             textAlign = TextAlign.Center,
@@ -720,45 +758,8 @@ private fun ContributeSuccessScreen(amount: String, onDone: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────
-// NAVIGATION GRAPH (NavGraph.kt)
+// SHARED FORMATTING
 // ─────────────────────────────────────────────
 
-/*
-Paste this in your NavGraph.kt file:
-
-@Composable
-fun PayLoopNavGraph() {
-    val navController = rememberNavController()
-
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
-
-        composable(Routes.LOGIN) {
-            LoginScreen(onLoginSuccess = {
-                navController.navigate(Routes.HOME) {
-                    popUpTo(Routes.LOGIN) { inclusive = true }
-                }
-            })
-        }
-
-        composable(Routes.HOME) {
-            HomeScreen(
-                onContributeClick = { navController.navigate(Routes.CONTRIBUTE) },
-                onLoanClick       = { navController.navigate(Routes.LOAN) },
-                onScoreClick      = { navController.navigate(Routes.SCORE) }
-            )
-        }
-
-        composable(Routes.CONTRIBUTE) {
-            ContributeScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(Routes.LOAN) {
-            // LoanRequestScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(Routes.SCORE) {
-            // ScoreScreen(onBack = { navController.popBackStack() })
-        }
-    }
-}
-*/
+/** Format a KES amount with thousands separators and no decimals. */
+fun formatKes(value: BigDecimal): String = "%,.0f".format(value)

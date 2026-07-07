@@ -58,6 +58,21 @@ android {
                 "META-INF/INDEX.LIST",
                 "META-INF/*.kotlin_module",
             )
+            // web3j's transitive deps (jackson, aws-sdk, tuweni, …) bundle
+            // overlapping license/notice/disclaimer text files under META-INF.
+            // These are non-code resources, so keeping the first copy of any
+            // duplicate is safe and avoids per-file exclude whack-a-mole.
+            pickFirsts += setOf(
+                "META-INF/*-LICENSE",
+                "META-INF/*-LICENSE.txt",
+                "META-INF/*-NOTICE",
+                "META-INF/*-NOTICE.txt",
+                "META-INF/DISCLAIMER",
+                "META-INF/DISCLAIMER.txt",
+                // netty ships this in every module; aws-sdk/bouncycastle overlap too.
+                "META-INF/io.netty.versions.properties",
+                "META-INF/native-image/**",
+            )
         }
     }
 }

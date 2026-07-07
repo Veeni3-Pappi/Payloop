@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,57 +17,73 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.payloop.app.data.LoanContext
+import com.payloop.app.data.ScoreData
 
 // ─────────────────────────────────────────────
 // 4. LOAN REQUEST SCREEN
 // ─────────────────────────────────────────────
 
 @Composable
-fun LoanRequestScreen(onBack: () -> Unit) {
-    var amount        by remember { mutableStateOf("") }
-    var reason        by remember { mutableStateOf("") }
-    var selectedTerm  by remember { mutableStateOf(1) } // months
-    var isLoading     by remember { mutableStateOf(false) }
-    var isSubmitted   by remember { mutableStateOf(false) }
-    var errorMsg      by remember { mutableStateOf("") }
+fun LoanRequestScreen(
+    onBack: () -> Unit,
+    viewModel: LoanViewModel = viewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val result by viewModel.result.collectAsState()
 
-    val repaymentTerms = listOf(1, 2, 3, 6)
-    val quickAmounts   = listOf(500, 1000, 2000, 5000)
-
-    // Max loan based on score — will come from API later
-    val maxLoan = (MockData.scorePoints * 100)
-
-    if (isSubmitted) {
-        LoanSubmittedScreen(amount = amount, term = selectedTerm, onDone = onBack)
+    result?.let { r ->
+        LoanSubmittedScreen(
+            amount = r.amountMatic ?: "",
+            days = r.repaymentDays ?: 0,
+            onDone = onBack,
+        )
         return
     }
+
+    when (val s = state) {
+        is LoanUiState.Loading -> {
+            Column(Modifier.fillMaxSize().background(PayLoopTheme.Surface)) {
+                ScreenTopBar("Request a Loan", onBack)
+                FullScreenLoader()
+            }
+        }
+        is LoanUiState.Error -> {
+            Column(Modifier.fillMaxSize().background(PayLoopTheme.Surface)) {
+                ScreenTopBar("Request a Loan", onBack)
+                ErrorState(message = s.message, onRetry = { viewModel.load() })
+            }
+        }
+        is LoanUiState.Ready -> LoanForm(context = s.context, viewModel = viewModel, onBack = onBack)
+    }
+}
+
+@Composable
+private fun LoanForm(
+    context: LoanContext,
+    viewModel: LoanViewModel,
+    onBack: () -> Unit,
+) {
+    var amount by remember { mutableStateOf("") }
+    var reason by remember { mutableStateOf("") }
+    var selectedTerm by remember { mutableStateOf(1) } // months
+    var localError by remember { mutableStateOf("") }
+
+    val submitting by viewModel.submitting.collectAsState()
+    val submitError by viewModel.submitError.collectAsState()
+
+    val repaymentTerms = listOf(1, 2, 3, 6)
+    val quickAmounts = listOf(500, 1000, 2000, 5000)
+    val maxLoan = context.maxLoanKes
+    val errorMsg = localError.ifEmpty { submitError ?: "" }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PayLoopTheme.Surface)
     ) {
-        // Top bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(PayLoopTheme.GradientBg)
-                .padding(horizontal = 20.dp, vertical = 20.dp)
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
-            Text(
-                "Request a Loan",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        ScreenTopBar("Request a Loan", onBack)
 
         Column(
             modifier = Modifier
@@ -79,27 +96,16 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = PayLoopTheme.Gold.copy(alpha = 0.12f)
-                )
+                colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Gold.copy(alpha = 0.12f))
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
-                        tint = PayLoopTheme.Gold,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Icon(Icons.Default.Star, contentDescription = null, tint = PayLoopTheme.Gold, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(
-                            "Your loan limit",
-                            fontSize = 12.sp,
-                            color = PayLoopTheme.TextSec
-                        )
+                        Text("Your loan limit", fontSize = 12.sp, color = PayLoopTheme.TextSec)
                         Text(
                             "KES ${"%,d".format(maxLoan)}",
                             fontSize = 20.sp,
@@ -107,7 +113,7 @@ fun LoanRequestScreen(onBack: () -> Unit) {
                             color = PayLoopTheme.TextPrim
                         )
                         Text(
-                            "Based on your score of ${MockData.scorePoints}",
+                            "Based on your score of ${context.score}",
                             fontSize = 11.sp,
                             color = PayLoopTheme.TextSec
                         )
@@ -118,21 +124,13 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(24.dp))
 
             // Amount input
-            Text(
-                "How much do you need?",
-                fontSize = 14.sp,
-                color = PayLoopTheme.TextSec,
-                fontWeight = FontWeight.Medium
-            )
+            Text("How much do you need?", fontSize = 14.sp, color = PayLoopTheme.TextSec, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
 
             OutlinedTextField(
                 value = amount,
                 onValueChange = {
-                    if (it.all { c -> c.isDigit() }) {
-                        amount = it
-                        errorMsg = ""
-                    }
+                    if (it.all { c -> c.isDigit() }) { amount = it; localError = ""; viewModel.clearError() }
                 },
                 prefix = { Text("KES  ", fontWeight = FontWeight.Bold, color = PayLoopTheme.TextPrim) },
                 placeholder = { Text("0") },
@@ -161,10 +159,7 @@ fun LoanRequestScreen(onBack: () -> Unit) {
                     val selected = amount == preset.toString()
                     FilterChip(
                         selected = selected,
-                        onClick = {
-                            amount = preset.toString()
-                            errorMsg = ""
-                        },
+                        onClick = { amount = preset.toString(); localError = ""; viewModel.clearError() },
                         label = { Text("$preset") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PayLoopTheme.Green600,
@@ -177,12 +172,7 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(24.dp))
 
             // Repayment term
-            Text(
-                "Repayment period",
-                fontSize = 14.sp,
-                color = PayLoopTheme.TextSec,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Repayment period", fontSize = 14.sp, color = PayLoopTheme.TextSec, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 repaymentTerms.forEach { months ->
@@ -190,9 +180,7 @@ fun LoanRequestScreen(onBack: () -> Unit) {
                     FilterChip(
                         selected = selected,
                         onClick = { selectedTerm = months },
-                        label = {
-                            Text(if (months == 1) "1 month" else "$months months")
-                        },
+                        label = { Text(if (months == 1) "1 month" else "$months months") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PayLoopTheme.Green600,
                             selectedLabelColor = Color.White
@@ -204,16 +192,11 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(24.dp))
 
             // Reason input
-            Text(
-                "Reason for loan",
-                fontSize = 14.sp,
-                color = PayLoopTheme.TextSec,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Reason for loan", fontSize = 14.sp, color = PayLoopTheme.TextSec, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = reason,
-                onValueChange = { reason = it },
+                onValueChange = { reason = it; if (localError.isNotEmpty()) localError = "" },
                 placeholder = { Text("e.g. Business stock, school fees...") },
                 minLines = 3,
                 maxLines = 4,
@@ -225,7 +208,6 @@ fun LoanRequestScreen(onBack: () -> Unit) {
                 )
             )
 
-            // Error
             AnimatedVisibility(visible = errorMsg.isNotEmpty()) {
                 Text(
                     errorMsg,
@@ -240,28 +222,19 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             // Summary
             if (amount.isNotEmpty() && amount.toIntOrNull() != null) {
                 val amountInt = amount.toInt()
-                val interest  = (amountInt * 0.05).toInt() // 5% flat — confirm with team
-                val total     = amountInt + interest
+                val interest = (amountInt * 0.05).toInt() // 5% flat — confirm with team
+                val total = amountInt + interest
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = PayLoopTheme.Green600.copy(alpha = 0.07f)
-                    )
+                    colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Green600.copy(alpha = 0.07f))
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         LoanSummaryRow("Loan amount", "KES $amount")
                         LoanSummaryRow("Interest (5%)", "KES $interest")
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            color = PayLoopTheme.Divider
-                        )
-                        LoanSummaryRow(
-                            "Total to repay",
-                            "KES ${"%,d".format(total)}",
-                            bold = true
-                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = PayLoopTheme.Divider)
+                        LoanSummaryRow("Total to repay", "KES ${"%,d".format(total)}", bold = true)
                         LoanSummaryRow("Over", "$selectedTerm ${if (selectedTerm == 1) "month" else "months"}")
                     }
                 }
@@ -274,36 +247,22 @@ fun LoanRequestScreen(onBack: () -> Unit) {
                 onClick = {
                     val amountInt = amount.toIntOrNull() ?: 0
                     when {
-                        amount.isEmpty()       -> errorMsg = "Enter an amount"
-                        amountInt < 100        -> errorMsg = "Minimum loan is KES 100"
-                        amountInt > maxLoan    -> errorMsg = "Amount exceeds your limit of KES $maxLoan"
-                        reason.isEmpty()       -> errorMsg = "Please add a reason for your loan"
-                        else -> {
-                            isLoading = true
-                            // TODO: Replace with API call to Team C
-                            // POST /api/loans/request
-                            // { amount, reason, term, walletAddress }
-                            // Response: { loanId, status: "pending" }
-                            isSubmitted = true
-                            isLoading = false
-                        }
+                        amount.isEmpty() -> localError = "Enter an amount"
+                        amountInt < 100 -> localError = "Minimum loan is KES 100"
+                        amountInt > maxLoan -> localError = "Amount exceeds your limit of KES $maxLoan"
+                        reason.isBlank() -> localError = "Please add a reason for your loan"
+                        else -> viewModel.submit(amount, reason.trim(), selectedTerm)
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PayLoopTheme.Green600),
-                enabled = !isLoading
+                enabled = !submitting
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
+                if (submitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Submit request", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -312,7 +271,7 @@ fun LoanRequestScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
 
             Text(
-                "Loan requests are reviewed by your group admin before approval.",
+                "Loan requests are reviewed by your group members before approval.",
                 fontSize = 12.sp,
                 color = PayLoopTheme.TextSec,
                 textAlign = TextAlign.Center,
@@ -352,7 +311,15 @@ private fun LoanSummaryRow(label: String, value: String, bold: Boolean = false) 
 // ─────────────────────────────────────────────
 
 @Composable
-private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
+private fun LoanSubmittedScreen(amount: String, days: Int, onDone: () -> Unit) {
+    val termText = when {
+        days <= 0 -> "the agreed period"
+        days % 30 == 0 -> {
+            val m = days / 30
+            "$m ${if (m == 1) "month" else "months"}"
+        }
+        else -> "$days days"
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -368,27 +335,17 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
                 .background(PayLoopTheme.Gold.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.HourglassTop,
-                contentDescription = null,
-                tint = PayLoopTheme.Gold,
-                modifier = Modifier.size(52.dp)
-            )
+            Icon(Icons.Default.HourglassTop, contentDescription = null, tint = PayLoopTheme.Gold, modifier = Modifier.size(52.dp))
         }
 
         Spacer(Modifier.height(24.dp))
 
-        Text(
-            "Request submitted!",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = PayLoopTheme.TextPrim
-        )
+        Text("Request submitted!", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = PayLoopTheme.TextPrim)
 
         Spacer(Modifier.height(8.dp))
 
         Text(
-            "Your loan request of KES $amount for $term ${if (term == 1) "month" else "months"} is pending approval from your group admin.",
+            "Your loan request of KES $amount for $termText is pending approval from your circle.",
             fontSize = 14.sp,
             color = PayLoopTheme.TextSec,
             textAlign = TextAlign.Center,
@@ -405,19 +362,9 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(PayLoopTheme.Gold)
-            )
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(PayLoopTheme.Gold))
             Spacer(Modifier.width(8.dp))
-            Text(
-                "Pending approval",
-                fontSize = 13.sp,
-                color = PayLoopTheme.Gold,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Pending approval", fontSize = 13.sp, color = PayLoopTheme.Gold, fontWeight = FontWeight.Medium)
         }
 
         Spacer(Modifier.height(40.dp))
@@ -438,223 +385,190 @@ private fun LoanSubmittedScreen(amount: String, term: Int, onDone: () -> Unit) {
 // ─────────────────────────────────────────────
 
 @Composable
-fun ScoreScreen(onBack: () -> Unit) {
+fun ScoreScreen(
+    onBack: () -> Unit,
+    viewModel: ScoreViewModel = viewModel()
+) {
+    val state by viewModel.state.collectAsState()
 
-    // Score tier logic
-    val score = MockData.scorePoints
-    val (tierLabel, tierColor, tierDesc) = when {
-        score >= 90 -> Triple("Platinum", Color(0xFF7B61FF), "Excellent standing")
-        score >= 75 -> Triple("Gold",     PayLoopTheme.Gold, "Great track record")
-        score >= 50 -> Triple("Silver",   Color(0xFF90A4AE), "Good, keep it up")
-        else        -> Triple("Bronze",   Color(0xFFBF8040), "Needs improvement")
+    Column(Modifier.fillMaxSize().background(PayLoopTheme.Surface)) {
+        ScreenTopBar("My Score", onBack)
+        when (val s = state) {
+            is ScoreUiState.Loading -> FullScreenLoader()
+            is ScoreUiState.Error -> ErrorState(message = s.message, onRetry = { viewModel.load() })
+            is ScoreUiState.Ready -> ScoreContent(data = s.data)
+        }
     }
+}
+
+@Composable
+private fun ScoreContent(data: ScoreData) {
+    // Score tier logic — on-chain CreditScore is a 0–1000 scale.
+    val score = data.score
+    val (tierLabel, tierColor, tierDesc) = when {
+        score >= 800 -> Triple("Platinum", Color(0xFF7B61FF), "Excellent standing")
+        score >= 650 -> Triple("Gold", PayLoopTheme.Gold, "Great track record")
+        score >= 450 -> Triple("Silver", Color(0xFF90A4AE), "Good, keep it up")
+        else -> Triple("Bronze", Color(0xFFBF8040), "Needs improvement")
+    }
+
+    // Turn raw counts into progress bars capped at a sensible target.
+    fun progress(count: Int, target: Int) = (count.toFloat() / target).coerceIn(0f, 1f)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PayLoopTheme.Surface)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top bar
+
+        // Score circle
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(PayLoopTheme.GradientBg)
-                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .size(160.dp)
+                .clip(CircleShape)
+                .background(tierColor.copy(alpha = 0.1f))
+                .border(4.dp, tierColor, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "$score",
+                    fontSize = 52.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = tierColor,
+                    letterSpacing = (-2).sp
+                )
+                Text("/ 1000", fontSize = 14.sp, color = PayLoopTheme.TextSec)
             }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Tier badge
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(tierColor.copy(alpha = 0.12f))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Star, contentDescription = null, tint = tierColor, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
-                "My Score",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
+                "$tierLabel Member — $tierDesc",
+                fontSize = 13.sp,
+                color = tierColor,
+                fontWeight = FontWeight.SemiBold
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "Your score determines your loan limit and tier benefits.",
+            fontSize = 12.sp,
+            color = PayLoopTheme.TextSec,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(28.dp))
+
+        // Score breakdown
+        Text(
+            "Score breakdown",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = PayLoopTheme.TextPrim,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        ScoreBreakdownCard(
+            icon = Icons.Default.AddCircle,
+            iconColor = PayLoopTheme.Green600,
+            label = "On-time contributions",
+            value = "${data.onTime}",
+            points = "+${data.onTime * 10} pts",
+            progress = progress(data.onTime, 12)
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        ScoreBreakdownCard(
+            icon = Icons.Default.CheckCircle,
+            iconColor = PayLoopTheme.Green400,
+            label = "Loans repaid",
+            value = "${data.repaid}",
+            points = "+${data.repaid * 15} pts",
+            progress = progress(data.repaid, 5)
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        ScoreBreakdownCard(
+            icon = Icons.Default.Warning,
+            iconColor = PayLoopTheme.Gold,
+            label = "Missed contributions",
+            value = "${data.missed}",
+            points = if (data.missed > 0) "-${data.missed * 20} pts" else "0 pts",
+            progress = progress(data.missed, 5)
+        )
+
+        Spacer(Modifier.height(28.dp))
+
+        // Loan limit card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Green900.copy(alpha = 0.05f))
         ) {
-
-            // Score circle
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(CircleShape)
-                    .background(tierColor.copy(alpha = 0.1f))
-                    .border(4.dp, tierColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "$score",
-                        fontSize = 52.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = tierColor,
-                        letterSpacing = (-2).sp
-                    )
-                    Text(
-                        "/ 100",
-                        fontSize = 14.sp,
-                        color = PayLoopTheme.TextSec
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Tier badge
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(tierColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = tierColor,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    "$tierLabel Member — $tierDesc",
-                    fontSize = 13.sp,
-                    color = tierColor,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                "Your score determines your loan limit and tier benefits.",
-                fontSize = 12.sp,
-                color = PayLoopTheme.TextSec,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(28.dp))
-
-            // Score breakdown
-            Text(
-                "Score breakdown",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = PayLoopTheme.TextPrim,
-                modifier = Modifier.align(Alignment.Start)
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            ScoreBreakdownCard(
-                icon = Icons.Default.AddCircle,
-                iconColor = PayLoopTheme.Green600,
-                label = "Contributions made",
-                value = "${MockData.contributions}",
-                points = "+45 pts",
-                progress = 0.75f
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            ScoreBreakdownCard(
-                icon = Icons.Default.CheckCircle,
-                iconColor = PayLoopTheme.Green400,
-                label = "Loans repaid on time",
-                value = "${MockData.loansRepaid}",
-                points = "+30 pts",
-                progress = 0.60f
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            ScoreBreakdownCard(
-                icon = Icons.Default.Schedule,
-                iconColor = PayLoopTheme.Gold,
-                label = "Consistency streak",
-                value = "3 months",
-                points = "+9 pts",
-                progress = 0.30f
-            )
-
-            Spacer(Modifier.height(28.dp))
-
-            // Loan limit card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = PayLoopTheme.Green900.copy(alpha = 0.05f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.AccountBalance,
-                        contentDescription = null,
-                        tint = PayLoopTheme.Green600,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            "Current loan limit",
-                            fontSize = 12.sp,
-                            color = PayLoopTheme.TextSec
-                        )
-                        Text(
-                            "KES ${"%,d".format(score * 100)}",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PayLoopTheme.Green400
-                        )
-                        Text(
-                            "Increase your score to unlock more",
-                            fontSize = 11.sp,
-                            color = PayLoopTheme.TextSec
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // How to improve
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Card),
-                elevation = CardDefaults.cardElevation(2.dp)
-            ) {
-                Column(Modifier.padding(18.dp)) {
+                Icon(Icons.Default.AccountBalance, contentDescription = null, tint = PayLoopTheme.Green600, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text("Current loan limit", fontSize = 12.sp, color = PayLoopTheme.TextSec)
                     Text(
-                        "How to improve your score",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PayLoopTheme.TextPrim
+                        "KES ${"%,d".format(data.maxLoanKes)}",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PayLoopTheme.Green400
                     )
-                    Spacer(Modifier.height(12.dp))
-                    ImprovementTip("Contribute every month on time")
-                    ImprovementTip("Repay loans before the due date")
-                    ImprovementTip("Avoid missing contribution cycles")
-                    ImprovementTip("Maintain a 6-month streak")
+                    Text("Increase your score to unlock more", fontSize = 11.sp, color = PayLoopTheme.TextSec)
                 }
             }
-
-            Spacer(Modifier.height(32.dp))
         }
+
+        Spacer(Modifier.height(20.dp))
+
+        // How to improve
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = PayLoopTheme.Card),
+            elevation = CardDefaults.cardElevation(2.dp)
+        ) {
+            Column(Modifier.padding(18.dp)) {
+                Text(
+                    "How to improve your score",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PayLoopTheme.TextPrim
+                )
+                Spacer(Modifier.height(12.dp))
+                ImprovementTip("Contribute every month on time")
+                ImprovementTip("Repay loans before the due date")
+                ImprovementTip("Avoid missing contribution cycles")
+                ImprovementTip("Maintain a 6-month streak")
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
     }
 }
 
@@ -689,12 +603,7 @@ private fun ScoreBreakdownCard(
                     Text(label, fontSize = 13.sp, color = PayLoopTheme.TextSec)
                     Text(value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PayLoopTheme.TextPrim)
                 }
-                Text(
-                    points,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PayLoopTheme.Green600
-                )
+                Text(points, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PayLoopTheme.Green600)
             }
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(
@@ -716,12 +625,7 @@ private fun ImprovementTip(text: String) {
         modifier = Modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(PayLoopTheme.Green400)
-        )
+        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(PayLoopTheme.Green400))
         Spacer(Modifier.width(10.dp))
         Text(text, fontSize = 13.sp, color = PayLoopTheme.TextSec)
     }
