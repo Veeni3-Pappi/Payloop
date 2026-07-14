@@ -6,6 +6,7 @@ import com.payloop.app.data.api.PayLoopApi
 import com.payloop.app.data.auth.AuthRepository
 import com.payloop.app.data.auth.TokenStore
 import com.payloop.app.data.wallet.Web3jWalletConnector
+import com.payloop.app.data.wallet.AppKitWalletConnector
 import com.payloop.app.data.wallet.WalletConnector
 import kotlinx.coroutines.runBlocking
 
@@ -24,7 +25,7 @@ object ServiceLocator {
 
     val tokenStore: TokenStore by lazy { TokenStore(appContext) }
 
-    val wallet: WalletConnector by lazy { Web3jWalletConnector(appContext) }
+    val wallet: WalletConnector by lazy { AppKitWalletConnector(appContext) }
 
     private val api: PayLoopApi by lazy {
         ApiClient.create(tokenProvider = { runBlocking { tokenStore.token() } })

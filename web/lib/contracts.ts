@@ -66,6 +66,13 @@ export const CIRCLE_VAULT_ABI = [
   },
   {
     inputs: [{ internalType: "address", name: "member", type: "address" }],
+    name: "contributeFor",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "member", type: "address" }],
     name: "addMember",
     outputs: [],
     stateMutability: "nonpayable",

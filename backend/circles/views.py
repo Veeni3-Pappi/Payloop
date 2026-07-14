@@ -352,6 +352,17 @@ def circle_members(request, pk):
         user=user,
         role="member",
     )
+
+    # Sync LendingPool member count on-chain
+    try:
+        from blockchain.bridge import trigger_set_lending_pool_total_members
+        total_count = Membership.objects.filter(circle=circle).count()
+        trigger_set_lending_pool_total_members(total_count)
+    except Exception as exc:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("Failed to sync lending pool member count on-chain: %s", exc)
+
     serializer = MembershipSerializer(membership)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 

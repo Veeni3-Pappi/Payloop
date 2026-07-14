@@ -164,7 +164,15 @@ def payment_callback(request):
 
         # Trigger the on-chain bridge transaction
         from blockchain.bridge import trigger_on_chain_contribution
-        tx_hash = trigger_on_chain_contribution(payment.amount)
+        
+        member_wallet = payment.user.wallet_address if payment.user else None
+        vault_address = payment.circle.contract_address if payment.circle else None
+        
+        tx_hash = trigger_on_chain_contribution(
+            payment.amount,
+            member_wallet=member_wallet,
+            vault_address=vault_address,
+        )
 
         if tx_hash:
             # Create a Contribution record for tracking
@@ -177,6 +185,21 @@ def payment_callback(request):
                 payment_method="mpesa",
             )
             logger.info("Recorded on-chain contribution in database for tx: %s", tx_hash)
+
+            # Record credit score update on-chain
+            if member_wallet:
+                try:
+                    from blockchain.bridge import trigger_record_credit_score_contribution
+                    trigger_record_credit_score_contribution(member_wallet, on_time=True)
+                except Exception as cs_exc:
+                    logger.warning("Failed to record credit score contribution on-chain: %s", cs_exc)
+
+                # Mint LoopToken rewards on-chain (10.0 LOOP points)
+                try:
+                    from blockchain.bridge import trigger_mint_loop_token
+                    trigger_mint_loop_token(member_wallet, amount_ether=10.0)
+                except Exception as lt_exc:
+                    logger.warning("Failed to mint LOOP reward tokens on-chain: %s", lt_exc)
 
             # Send push notification
             if payment.user:

@@ -119,6 +119,43 @@ contract CircleVaultTest is Test {
         vault.contribute{value: 0}();
     }
 
+    // ── contributeFor ──────────────────────────────────────
+    function test_OwnerCanContributeForMember() public {
+        vault.addMember(alice);
+        vm.deal(admin, 5 ether);
+
+        vm.expectEmit(true, false, false, true);
+        emit Contributed(alice, 2 ether, block.timestamp);
+        vault.contributeFor{value: 2 ether}(alice);
+
+        assertEq(vault.getContribution(alice), 2 ether);
+        assertEq(vault.totalVault(), 2 ether);
+        assertEq(vault.getBalance(), 2 ether);
+    }
+
+    function test_NonOwnerCannotContributeForMember() public {
+        vault.addMember(alice);
+        vm.deal(stranger, 5 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, stranger)
+        );
+        vm.prank(stranger);
+        vault.contributeFor{value: 2 ether}(alice);
+    }
+
+    function test_ContributeForNonMemberReverts() public {
+        vm.deal(admin, 5 ether);
+        vm.expectRevert("Recipient is not a member of this circle");
+        vault.contributeFor{value: 2 ether}(stranger);
+    }
+
+    function test_ContributeForZeroAmountReverts() public {
+        vault.addMember(alice);
+        vm.expectRevert("Amount must be greater than 0");
+        vault.contributeFor{value: 0}(alice);
+    }
+
     // ── receive() direct funding ───────────────────────────
     function test_ReceiveTracksTotalVault() public {
         (bool ok, ) = address(vault).call{value: 3 ether}("");

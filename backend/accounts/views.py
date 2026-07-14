@@ -57,15 +57,15 @@ def verify_wallet(request):
     
     vault_address = os.environ.get("CIRCLE_VAULT_ADDRESS", "").lower().strip()
     if vault_address:
-        circle, _ = Circle.objects.get_or_create(
-            contract_address=vault_address,
-            defaults={
-                "name": "PayLoop Demo Circle",
-                "admin_wallet": wallet.lower(),
-                "contribution_amount": 10.00,
-                "contribution_frequency": "monthly",
-            }
-        )
+        circle = Circle.objects.filter(contract_address=vault_address).first()
+        if not circle:
+            circle = Circle.objects.create(
+                contract_address=vault_address,
+                name="PayLoop Demo Circle",
+                admin_wallet=wallet.lower(),
+                contribution_amount=10.00,
+                contribution_frequency="monthly",
+            )
         # Add user to this circle
         Membership.objects.get_or_create(
             circle=circle,

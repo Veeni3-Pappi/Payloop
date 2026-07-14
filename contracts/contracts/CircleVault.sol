@@ -44,6 +44,18 @@ contract CircleVault is Ownable {
     }
 
     /**
+     * @dev Admin-only (owner): Contribute MATIC on behalf of a member.
+     *      Useful for backend bridges (e.g. M-Pesa payments).
+     */
+    function contributeFor(address member) external payable onlyOwner {
+        require(msg.value > 0, "Amount must be greater than 0");
+        require(isMember[member], "Recipient is not a member of this circle");
+        contributions[member] += msg.value;
+        totalVault += msg.value;
+        emit Contributed(member, msg.value, block.timestamp);
+    }
+
+    /**
      * @dev Admin-only: add a new member to the circle.
      */
     function addMember(address member) external onlyOwner {
